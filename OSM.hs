@@ -21,9 +21,10 @@ data RelationMember =
 
 newtype Latitude = Latitude Float deriving (Show, Eq)
 newtype Longitude = Longitude Float deriving (Show, Eq)
-newtype TagKey = TagKey String deriving (Show, Eq)
+newtype TagKey = TagKey String deriving (Show, Eq, Ord)
 
-newtype Tags = Tags (Map.Map TagKey String) deriving (Show, Eq)
+type Tags = Map.Map TagKey String
+
 
 data Coordinates = Coordinates Latitude Longitude deriving (Show, Eq)
 
