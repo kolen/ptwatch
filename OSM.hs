@@ -3,9 +3,9 @@ module OSM where
 import Data.Time (UTCTime)
 import qualified Data.Map.Strict as Map
 
-newtype NodeID = NodeID Int deriving (Show, Eq)
-newtype WayID = WayID Int deriving (Show, Eq)
-newtype RelationID = RelationID Int deriving (Show, Eq)
+newtype NodeID = NodeID Integer deriving (Show, Eq)
+newtype WayID = WayID Integer deriving (Show, Eq)
+newtype RelationID = RelationID Integer deriving (Show, Eq)
 
 newtype RelationRole = RelationRole String deriving (Show, Eq)
 

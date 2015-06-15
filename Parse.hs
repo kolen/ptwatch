@@ -1,4 +1,4 @@
-{-# LANGUAGE Arrows, NoMonomorphismRestriction #-}
+{-# LANGUAGE Arrows #-}
 module OSM.Parse where
 
 import Text.XML.HXT.Core
@@ -20,39 +20,54 @@ tagElementToKeyValue = proc el -> do
   returnA -< (OSM.TagKey key, value)
 
 
+topLevelTag :: ArrowXml t => String -> t XmlTree XmlTree
+topLevelTag tag = getChildren >>> hasName "osm" /> hasName tag
+
+
 getOSMTags :: ArrowXml t => t XmlTree OSM.Tags
 getOSMTags = listA (getChildren >>> hasName "tag" >>> tagElementToKeyValue)
   >>> arr Map.fromList
 
 
+getOSMVersionInfo :: ArrowXml a => a XmlTree OSM.VersionInfo
+getOSMVersionInfo = proc n -> do
+  user <- getAttrValue "user" -< n
+  uidS <- getAttrValue "uid" -< n
+  versionS <- getAttrValue "version" -< n
+  changesetS <- getAttrValue "changeset" -< n
+  timestampS <- getAttrValue "timestamp" -< n
+  let uid = numericAttr uidS
+  let version = numericAttr versionS
+  let changeset = numericAttr changesetS
+  let timestamp = numericAttr timestampS
+  let visible = Nothing
+  returnA -< OSM.VersionInfo { OSM.user=nothingIfEmpty user
+                             , OSM.uid=uid
+                             , OSM.version=version
+                             , OSM.changeset=changeset
+                             , OSM.timestamp=timestamp
+                             , OSM.visible=visible
+                             }
+
+getOSMID :: ArrowXml a => a XmlTree Integer
+getOSMID = getAttrValue "id" >>> arr read
+
 getOSMNode :: ArrowXml t => t XmlTree OSM.Node
-getOSMNode = deep (isElem >>> hasName "node") >>>
+getOSMNode = topLevelTag "node" >>>
   proc x -> do
-    idS <- getAttrValue "id" -< x
-    user <- getAttrValue "user" -< x
-    uidS <- getAttrValue "uid" -< x
-    versionS <- getAttrValue "version" -< x
-    changesetS <- getAttrValue "changeset" -< x
-    timestampS <- getAttrValue "timestamp" -< x
     latS <- getAttrValue "lat" -< x
     lonS <- getAttrValue "lon" -< x
-    let nodeId = read idS
-    let uid = numericAttr uidS
-    let version = numericAttr versionS
-    let changeset = numericAttr changesetS
-    let timestamp = numericAttr timestampS
-    let visible = Nothing
-    let versionInfo = OSM.VersionInfo { OSM.user=nothingIfEmpty user
-                                      , OSM.uid=uid
-                                      , OSM.version=version
-                                      , OSM.changeset=changeset
-                                      , OSM.timestamp=timestamp
-                                      , OSM.visible=visible
-                                      }
     let lat = read latS
     let lon = read lonS
+
+    nodeId <- getOSMID -< x
     tags <- getOSMTags -< x
+    versionInfo <- getOSMVersionInfo -< x
     returnA -< OSM.Node (OSM.NodeID nodeId) tags (OSM.Coordinates (OSM.Latitude lat) (OSM.Longitude lon)) versionInfo
+
+
+-- getOSMWay :: ArrowXml t => t XmlTree OSM.Way
+-- getOSMWay = dee
 
 
 main :: IO ()
