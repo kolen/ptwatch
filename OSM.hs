@@ -38,5 +38,5 @@ data VersionInfo = VersionInfo
   } deriving (Show, Eq)
 
 data Node = Node NodeID Tags Coordinates VersionInfo deriving (Show, Eq)
-data Way = Way WayID Tags [Node] VersionInfo deriving (Show, Eq)
+data Way = Way WayID Tags [NodeID] VersionInfo deriving (Show, Eq)
 data Relation = Relation RelationID Tags [RelationMember] VersionInfo deriving (Show, Eq)

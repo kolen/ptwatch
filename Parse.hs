@@ -55,20 +55,55 @@ getOSMID = getAttrValue "id" >>> arr read
 getOSMNode :: ArrowXml t => t XmlTree OSM.Node
 getOSMNode = topLevelTag "node" >>>
   proc x -> do
+    nodeId <- getOSMID -< x
+    tags <- getOSMTags -< x
+    versionInfo <- getOSMVersionInfo -< x
+
     latS <- getAttrValue "lat" -< x
     lonS <- getAttrValue "lon" -< x
     let lat = read latS
     let lon = read lonS
 
-    nodeId <- getOSMID -< x
-    tags <- getOSMTags -< x
-    versionInfo <- getOSMVersionInfo -< x
     returnA -< OSM.Node (OSM.NodeID nodeId) tags (OSM.Coordinates (OSM.Latitude lat) (OSM.Longitude lon)) versionInfo
 
+getOSMWayNodes :: ArrowXml t => t XmlTree [OSM.NodeID]
+getOSMWayNodes = listA $ getChildren >>> hasName "nd" >>> getAttrValue "ref" >>> arr read >>> arr OSM.NodeID
 
--- getOSMWay :: ArrowXml t => t XmlTree OSM.Way
--- getOSMWay = dee
+getOSMWay :: ArrowXml t => t XmlTree OSM.Way
+getOSMWay = topLevelTag "way" >>>
+  proc x -> do
+    wayId <- getOSMID -< x
+    tags <- getOSMTags -< x
+    versionInfo <- getOSMVersionInfo -< x
 
+    nodes <- getOSMWayNodes -< x
+
+    returnA -< OSM.Way (OSM.WayID wayId) tags nodes versionInfo
+
+elementIdByType "node" i = OSM.ElementNodeID (OSM.NodeID i)
+elementIdByType "way" i =  OSM.ElementWayID (OSM.WayID i)
+elementIdByType "relation" i = OSM.ElementRelationID (OSM.RelationID i)
+
+getOSMRelationMembers :: ArrowXml t => t XmlTree [OSM.RelationMember]
+getOSMRelationMembers = listA $ getChildren >>> hasName "member" >>>
+  proc x -> do
+    elIdS <- getAttrValue "ref" -< x
+    typeS <- getAttrValue "type" -< x
+    role <- getAttrValue "role" -< x
+    let elId = read elIdS
+    let elementId = elementIdByType typeS elId
+    returnA -< OSM.RelationMember elementId (OSM.RelationRole role)
+
+getOSMRelation :: ArrowXml t => t XmlTree OSM.Relation
+getOSMRelation = topLevelTag "relation" >>>
+  proc x -> do
+    relationId <- getOSMID -< x
+    tags <- getOSMTags -< x
+    versionInfo <- getOSMVersionInfo -< x
+
+    members <- getOSMRelationMembers -< x
+
+    returnA -< OSM.Relation (OSM.RelationID relationId) tags members versionInfo
 
 main :: IO ()
 main = do
