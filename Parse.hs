@@ -126,9 +126,3 @@ parseXMLFile :: String -> IO OSM.Dataset
 parseXMLFile filename = do
   results <- runX (readDocument [] filename >>> getOSMEverything)
   return (case results of [result] -> result)
-
-
-main :: IO ()
-main = do
-  nodes <- runX (readDocument [] "test.xml" >>> getOSMNode)
-  print nodes
