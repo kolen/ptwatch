@@ -85,6 +85,7 @@ elementIdByType :: String -> Integer -> OSM.ElementID
 elementIdByType "node" i = OSM.ElementNodeID (OSM.NodeID i)
 elementIdByType "way" i =  OSM.ElementWayID (OSM.WayID i)
 elementIdByType "relation" i = OSM.ElementRelationID (OSM.RelationID i)
+elementIdByType t _ = error $ "Invalid type " ++ t
 
 getOSMRelationMembers :: ArrowXml t => t XmlTree [OSM.RelationMember]
 getOSMRelationMembers = listA $ getChildren >>> hasName "member" >>>
@@ -125,4 +126,5 @@ getOSMEverything = proc x -> do
 parseXMLFile :: String -> IO OSM.Dataset
 parseXMLFile filename = do
   results <- runX (readDocument [] filename >>> getOSMEverything)
-  return (case results of [result] -> result)
+  return (case results of [result] -> result
+                          _ -> error "No result")
