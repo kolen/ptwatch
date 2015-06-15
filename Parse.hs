@@ -1,5 +1,6 @@
 {-# LANGUAGE Arrows #-}
-module OSM.Parse where
+module OSM.Parse (parseXMLFile)
+where
 
 import Text.XML.HXT.Core
 import qualified OSM
