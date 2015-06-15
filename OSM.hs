@@ -1,11 +1,13 @@
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+
 module OSM where
 
 import Data.Time (UTCTime)
 import qualified Data.Map.Strict as Map
 
-newtype NodeID = NodeID Integer deriving (Show, Eq)
-newtype WayID = WayID Integer deriving (Show, Eq)
-newtype RelationID = RelationID Integer deriving (Show, Eq)
+newtype NodeID = NodeID Integer deriving (Show, Eq, Ord)
+newtype WayID = WayID Integer deriving (Show, Eq, Ord)
+newtype RelationID = RelationID Integer deriving (Show, Eq, Ord)
 
 newtype RelationRole = RelationRole String deriving (Show, Eq)
 
@@ -40,3 +42,19 @@ data VersionInfo = VersionInfo
 data Node = Node NodeID Tags Coordinates VersionInfo deriving (Show, Eq)
 data Way = Way WayID Tags [NodeID] VersionInfo deriving (Show, Eq)
 data Relation = Relation RelationID Tags [RelationMember] VersionInfo deriving (Show, Eq)
+
+class (Ord id) => Element el id | el -> id where
+  getId :: el -> id
+
+instance Element Node NodeID where
+  getId (Node i _ _ _) = i
+
+instance Element Way WayID where
+  getId (Way i _ _ _) = i
+
+instance Element Relation RelationID where
+  getId (Relation i _ _ _) = i
+
+data Dataset = Dataset (Map.Map NodeID Node)
+                       (Map.Map WayID Way)
+                       (Map.Map RelationID Relation) deriving (Show)

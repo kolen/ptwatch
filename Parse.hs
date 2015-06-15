@@ -80,6 +80,7 @@ getOSMWay = topLevelTag "way" >>>
 
     returnA -< OSM.Way (OSM.WayID wayId) tags nodes versionInfo
 
+elementIdByType :: String -> Integer -> OSM.ElementID
 elementIdByType "node" i = OSM.ElementNodeID (OSM.NodeID i)
 elementIdByType "way" i =  OSM.ElementWayID (OSM.WayID i)
 elementIdByType "relation" i = OSM.ElementRelationID (OSM.RelationID i)
@@ -104,6 +105,27 @@ getOSMRelation = topLevelTag "relation" >>>
     members <- getOSMRelationMembers -< x
 
     returnA -< OSM.Relation (OSM.RelationID relationId) tags members versionInfo
+
+
+listToMap :: (OSM.Element e i) => [e] -> Map.Map i e
+listToMap =  Map.fromList . map elementToPair
+  where elementToPair el = (OSM.getId el, el)
+
+getOSMEverything :: ArrowXml t => t XmlTree OSM.Dataset
+getOSMEverything = proc x -> do
+  nodes <- listA getOSMNode -< x
+  ways <- listA getOSMWay -< x
+  relations <- listA getOSMRelation -< x
+  let nodesMap = listToMap nodes
+  let waysMap = listToMap ways
+  let relationsMap = listToMap relations
+  returnA -< OSM.Dataset nodesMap waysMap relationsMap
+
+parseXMLFile :: String -> IO OSM.Dataset
+parseXMLFile filename = do
+  results <- runX (readDocument [] filename >>> getOSMEverything)
+  return (case results of [result] -> result)
+
 
 main :: IO ()
 main = do
