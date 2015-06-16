@@ -45,15 +45,19 @@ data Relation = Relation RelationID Tags [RelationMember] VersionInfo deriving (
 
 class (Ord id) => Element el id | el -> id where
   getId :: el -> id
+  tags :: el -> Tags
 
 instance Element Node NodeID where
   getId (Node i _ _ _) = i
+  tags (Node _ t _ _) = t
 
 instance Element Way WayID where
   getId (Way i _ _ _) = i
+  tags (Way _ t _ _) = t
 
 instance Element Relation RelationID where
   getId (Relation i _ _ _) = i
+  tags (Relation _ t _ _) = t
 
 data Dataset = Dataset (Map.Map NodeID Node)
                        (Map.Map WayID Way)
