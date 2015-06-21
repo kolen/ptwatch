@@ -43,6 +43,9 @@ data Node = Node NodeID Tags Coordinates VersionInfo deriving (Show, Eq)
 data Way = Way WayID Tags [NodeID] VersionInfo deriving (Show, Eq)
 data Relation = Relation RelationID Tags [RelationMember] VersionInfo deriving (Show, Eq)
 
+nodeIds :: Way -> [NodeID]
+nodeIds (Way _ _ ids _) = ids
+
 class (Ord id) => Element el id | el -> id where
   getId :: el -> id
   tags :: el -> Tags
