@@ -46,10 +46,24 @@ endPoint (WayWithDirection w Backward) = head $ OSM.nodeIds w
 canBePaired :: WayWithDirection -> WayWithDirection -> Bool
 canBePaired w1 w2 = endPoint w1 == startPoint w2
 
-wayDirectionByPair :: Maybe WayWithUncertainDirection -> OSM.Way -> Maybe UncertainDirection
+-- | Infer direction of way in connection with previous way
+wayDirectionByPair :: Maybe WayWithUncertainDirection -- ^ Previous way if any
+                   -> OSM.Way                         -- ^ Current way
+                   -> Maybe UncertainDirection
+                   -- ^ Inferred direction or 'Nothing' if pair of ways cannot
+                   -- be connected
 wayDirectionByPair = undefined
 
-wayDirection :: Maybe WayWithUncertainDirection -> OSM.Way -> [OSM.Way] -> Maybe UncertainDirection
+-- | Infer direction of way in connection with adjacent ways
+wayDirection :: Maybe WayWithUncertainDirection
+             -- ^ Previous way if any ('Nothing' if this way is starting way)
+             -> OSM.Way
+             -- ^ Current way of which detect direction
+             -> [OSM.Way]
+             -- ^ List of next ways
+             -> Maybe UncertainDirection
+             -- ^ Inferred direction or 'Nothing' if way cannot be connected
+             -- with previous or next ways
 wayDirection prev way nexts = do
   let itself = wayDirectionByItself way
   pair <- wayDirectionByPair prev way
