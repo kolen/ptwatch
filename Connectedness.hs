@@ -1,18 +1,28 @@
 module Ptwatch.Connectedness
+  ( WayWithDirection
+  , WayWithUncertainDirection
+  , waysDirections
+  , prop_waysDirections
+  )
 where
 
 import qualified OSM
 import qualified Data.Map.Strict as Map
-
-type WaysSeq = [OSM.Way]
+import Control.Applicative
+import Test.QuickCheck
 
 data WayWithDirection = WayWithDirection OSM.Way Direction
 data WayWithUncertainDirection =
    WayWithUncertainDirection OSM.Way UncertainDirection
 
-data Direction = Forward | Backward
+data Direction = Forward | Backward deriving (Eq)
 data UncertainDirection = KnownDirection Direction | UnknownDirection
 data Oneway = Oneway | ReverseOneway | NotOneway
+
+-- | List of possible directions of UncertainDirection
+directionVariants :: UncertainDirection -> [Direction]
+directionVariants (KnownDirection d) = [d]
+directionVariants UnknownDirection   = [Forward, Backward]
 
 onewayDirection :: Oneway -> UncertainDirection
 onewayDirection Oneway = KnownDirection Forward
@@ -52,7 +62,16 @@ wayDirectionByPair :: Maybe WayWithUncertainDirection -- ^ Previous way if any
                    -> Maybe UncertainDirection
                    -- ^ Inferred direction or 'Nothing' if pair of ways cannot
                    -- be connected
-wayDirectionByPair = undefined
+wayDirectionByPair Nothing     _   = Just UnknownDirection
+wayDirectionByPair (Just (WayWithUncertainDirection prevW prevD) ) way =
+  case (Forward `elem` directions, Backward `elem` directions) of
+    (False, False) -> Nothing
+    (False, True)  -> Just (KnownDirection Backward)
+    (True,  False) -> Just (KnownDirection Forward)
+    (True,  True)  -> Just UnknownDirection
+  where
+    directions = [p | p <- directionVariants prevD, c <- [Forward, Backward],
+      canBePaired (WayWithDirection prevW p) (WayWithDirection way c)]
 
 -- | Infer direction of way in connection with adjacent ways
 wayDirection :: Maybe WayWithUncertainDirection
@@ -102,3 +121,24 @@ waysDirections ways = let (component, remaining) = waysDirectionsComponent ways
   in case remaining of
     [] -> [component]
     _  -> component : waysDirections remaining
+
+instance Arbitrary OSM.Way where
+  arbitrary = do
+    wayId <- arbitrary
+    let tags = Map.empty
+    nodeIds <- listOf1 arbitrary
+    versionInfo <- arbitrary
+    return $ OSM.Way wayId tags nodeIds versionInfo
+
+instance Arbitrary OSM.WayID where
+  arbitrary = OSM.WayID <$> arbitrary
+
+instance Arbitrary OSM.NodeID where
+  arbitrary = OSM.NodeID <$> arbitrary
+
+instance Arbitrary OSM.VersionInfo where
+  arbitrary = return $ OSM.VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
+
+prop_waysDirections :: [OSM.Way] -> Bool
+prop_waysDirections ways =
+  sum [length w | w <- waysDirections ways] == length ways
