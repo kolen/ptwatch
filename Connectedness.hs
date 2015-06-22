@@ -70,7 +70,35 @@ wayDirection prev way nexts = do
   next <- nextPair pair way nexts
   return $ itself `clarify` pair `clarify` next
     where
-      nextPair :: UncertainDirection -> OSM.Way -> [OSM.Way] -> Maybe UncertainDirection
+      nextPair :: UncertainDirection -> OSM.Way -> [OSM.Way]
+               -> Maybe UncertainDirection
       nextPair _ _ [] = Just UnknownDirection
       nextPair prevDir w (next1:nexts1) =
         wayDirection (Just (WayWithUncertainDirection w prevDir)) next1 nexts1
+
+-- | Infer directions of ways of first interconnected segment of ways list.
+-- Remaining ways after first connection break are returned in remaining list
+waysDirectionsComponent :: [OSM.Way]
+                        -> ([WayWithUncertainDirection], [OSM.Way])
+                        -- ^ List of ways with detected directions;
+                        --   Remaining ways after end of interconnected segment
+waysDirectionsComponent ways =
+  wdc ways Nothing
+  where
+    wdc :: [OSM.Way] -> Maybe WayWithUncertainDirection
+        -> ([WayWithUncertainDirection], [OSM.Way])
+    wdc ws@[]      _    = ([], ws)
+    wdc ws@(w:ws') prev = let dir = wayDirection prev w ws'
+      in case dir of
+        Nothing    -> ([], ws)
+        (Just dir') -> let (wwd1, wr1) = wdc ws' (Just wwd)
+                           wwd = WayWithUncertainDirection w dir'
+                       in (wwd:wwd1, wr1)
+
+-- | Infer direction on list of successive ways. Returns list of connected
+-- components, should be one component if route is valid.
+waysDirections :: [OSM.Way] -> [[WayWithUncertainDirection]]
+waysDirections ways = let (component, remaining) = waysDirectionsComponent ways
+  in case remaining of
+    [] -> [component]
+    _  -> component : waysDirections remaining
