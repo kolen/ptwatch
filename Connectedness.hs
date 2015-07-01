@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Ptwatch.Connectedness
   ( WayWithDirection
   , WayWithUncertainDirection
@@ -128,7 +130,7 @@ instance Arbitrary OSM.Way where
     let tags = Map.empty
     nodeIds <- listOf1 arbitrary
     versionInfo <- arbitrary
-    return $ OSM.Way wayId tags nodeIds versionInfo
+    return $ OSM.Element wayId tags nodeIds versionInfo
 
 instance Arbitrary OSM.WayID where
   arbitrary = OSM.WayID <$> arbitrary

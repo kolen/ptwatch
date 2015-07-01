@@ -65,7 +65,7 @@ getOSMNode = topLevelTag "node" >>>
     let lat = read latS
     let lon = read lonS
 
-    returnA -< OSM.Node (OSM.NodeID nodeId) tags (OSM.Coordinates (OSM.Latitude lat) (OSM.Longitude lon)) versionInfo
+    returnA -< OSM.Element (OSM.NodeID nodeId) tags (OSM.Coordinates (OSM.Latitude lat) (OSM.Longitude lon)) versionInfo
 
 getOSMWayNodes :: ArrowXml t => t XmlTree [OSM.NodeID]
 getOSMWayNodes = listA $ getChildren >>> hasName "nd" >>> getAttrValue "ref" >>> arr read >>> arr OSM.NodeID
@@ -79,7 +79,7 @@ getOSMWay = topLevelTag "way" >>>
 
     nodes <- getOSMWayNodes -< x
 
-    returnA -< OSM.Way (OSM.WayID wayId) tags nodes versionInfo
+    returnA -< OSM.Element (OSM.WayID wayId) tags nodes versionInfo
 
 elementIdByType :: String -> Integer -> OSM.ElementID
 elementIdByType "node" i = OSM.ElementNodeID (OSM.NodeID i)
@@ -106,12 +106,11 @@ getOSMRelation = topLevelTag "relation" >>>
 
     members <- getOSMRelationMembers -< x
 
-    returnA -< OSM.Relation (OSM.RelationID relationId) tags members versionInfo
+    returnA -< OSM.Element (OSM.RelationID relationId) tags members versionInfo
 
-
-listToMap :: (OSM.Element e i) => [e] -> Map.Map i e
+listToMap :: Ord i => [OSM.Element i p] -> Map.Map i (OSM.Element i p)
 listToMap =  Map.fromList . map elementToPair
-  where elementToPair el = (OSM.getId el, el)
+  where elementToPair el = (OSM.id el, el)
 
 getOSMEverything :: ArrowXml t => t XmlTree OSM.Dataset
 getOSMEverything = proc x -> do

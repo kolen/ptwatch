@@ -27,40 +27,33 @@ newtype TagKey = TagKey String deriving (Show, Eq, Ord)
 
 type Tags = Map.Map TagKey String
 
-
 data Coordinates = Coordinates Latitude Longitude deriving (Show, Eq)
 
+-- | Information about last modification, each field is optional
 data VersionInfo = VersionInfo
-  { user :: Maybe String
-  , uid :: Maybe Integer
-  , timestamp :: Maybe UTCTime
-  , visible :: Maybe Bool
-  , version :: Maybe Integer
-  , changeset :: Maybe Integer
+  { user :: Maybe String -- ^ user name (user last modified this element)
+  , uid :: Maybe Integer -- ^ user ID (user last modified this element)
+  , timestamp :: Maybe UTCTime -- ^ timestamp (last modified time)
+  , visible :: Maybe Bool -- ^ visible? (only deleted elements are invisible)
+  , version :: Maybe Integer -- ^ version number
+  , changeset :: Maybe Integer -- ^ changeset number
   } deriving (Show, Eq)
 
-data Node = Node NodeID Tags Coordinates VersionInfo deriving (Show, Eq)
-data Way = Way WayID Tags [NodeID] VersionInfo deriving (Show, Eq)
-data Relation = Relation RelationID Tags [RelationMember] VersionInfo deriving (Show, Eq)
+-- | Abstract OSM element with id "i" and payload "p". Contains fields common
+--   to all OSM elements: id, tags, version info
+data Ord i => Element i p = Element
+  { id :: i
+  , tags :: Tags
+  , _payload :: p
+  , versionInfo :: VersionInfo
+} deriving (Show, Eq)
+
+type Node     = Element NodeID Coordinates
+type Way      = Element WayID [NodeID]
+type Relation = Element RelationID [RelationMember]
 
 nodeIds :: Way -> [NodeID]
-nodeIds (Way _ _ ids _) = ids
-
-class (Ord id) => Element el id | el -> id where
-  getId :: el -> id
-  tags :: el -> Tags
-
-instance Element Node NodeID where
-  getId (Node i _ _ _) = i
-  tags (Node _ t _ _) = t
-
-instance Element Way WayID where
-  getId (Way i _ _ _) = i
-  tags (Way _ t _ _) = t
-
-instance Element Relation RelationID where
-  getId (Relation i _ _ _) = i
-  tags (Relation _ t _ _) = t
+nodeIds = _payload
 
 data Dataset = Dataset (Map.Map NodeID Node)
                        (Map.Map WayID Way)
