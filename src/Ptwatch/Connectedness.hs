@@ -4,7 +4,7 @@ module Ptwatch.Connectedness
   ( WayWithDirection
   , WayWithUncertainDirection
   , waysDirections
-  , prop_waysDirections
+  , prop_waysDirectionsSameLength
   )
 where
 
@@ -141,6 +141,6 @@ instance Arbitrary OSM.NodeID where
 instance Arbitrary OSM.VersionInfo where
   arbitrary = return $ OSM.VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
 
-prop_waysDirections :: [OSM.Way] -> Bool
-prop_waysDirections ways =
-  sum [length w | w <- waysDirections ways] == length ways
+prop_waysDirectionsSameLength :: [OSM.Way] -> Bool
+prop_waysDirectionsSameLength ways =
+  sum (length <$> waysDirections ways) == length ways

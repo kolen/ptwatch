@@ -1,5 +1,4 @@
 module Main where
-
 import Ptwatch.Connectedness
 
 import Test.Framework as TF (defaultMain, testGroup, Test)
@@ -12,6 +11,6 @@ main = defaultMain tests
 tests :: [TF.Test]
 tests = [
         testGroup "Connectedness" [
-          testProperty "waysDirections" prop_waysDirections
+          testProperty "waysDirectionsSameLength" prop_waysDirectionsSameLength
           ]
         ]
