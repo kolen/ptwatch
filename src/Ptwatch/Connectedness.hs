@@ -4,7 +4,9 @@ module Ptwatch.Connectedness
   ( WayWithDirection
   , WayWithUncertainDirection
   , waysDirections
-  , prop_waysDirectionsSameLength
+  , prop_waysDirectionsTheSameWays
+  , prop_waysDirectionsComponentTheSameWays
+  , prop_shouldDetectAtLeastOneWay
   )
 where
 
@@ -12,13 +14,21 @@ import qualified OSM
 import qualified Data.Map.Strict as Map
 import Control.Applicative
 import Test.QuickCheck
+import Debug.Trace
 
 data WayWithDirection = WayWithDirection OSM.Way Direction
 data WayWithUncertainDirection =
-   WayWithUncertainDirection OSM.Way UncertainDirection
+   WayWithUncertainDirection OSM.Way UncertainDirection deriving (Show)
 
-data Direction = Forward | Backward deriving (Eq)
-data UncertainDirection = KnownDirection Direction | UnknownDirection
+class WayAndDirection w where
+  way :: w -> OSM.Way
+instance WayAndDirection WayWithDirection where
+  way (WayWithDirection w _) = w
+instance WayAndDirection WayWithUncertainDirection where
+  way (WayWithUncertainDirection w _) = w
+
+data Direction = Forward | Backward deriving (Eq, Show)
+data UncertainDirection = KnownDirection Direction | UnknownDirection deriving (Show)
 data Oneway = Oneway | ReverseOneway | NotOneway
 
 -- | List of possible directions of UncertainDirection
@@ -86,16 +96,15 @@ wayDirection :: Maybe WayWithUncertainDirection
              -- ^ Inferred direction or 'Nothing' if way cannot be connected
              -- with previous or next ways
 wayDirection prev way nexts = do
-  let itself = wayDirectionByItself way
-  pair <- wayDirectionByPair prev way
-  next <- nextPair pair way nexts
-  return $ itself `clarify` pair `clarify` next
+  let byItself = wayDirectionByItself way
+  byPairPrev <- wayDirectionByPair prev way
+  byPairNext <- nextPair way nexts
+  return $ byItself `clarify` byPairPrev `clarify` byPairNext
     where
-      nextPair :: UncertainDirection -> OSM.Way -> [OSM.Way]
-               -> Maybe UncertainDirection
-      nextPair _ _ [] = Just UnknownDirection
-      nextPair prevDir w (next1:nexts1) =
-        wayDirection (Just (WayWithUncertainDirection w prevDir)) next1 nexts1
+      nextPair :: OSM.Way -> [OSM.Way] -> Maybe UncertainDirection
+      nextPair _ [] = Just UnknownDirection
+      nextPair w (next1:nexts1) =
+        wayDirection (Just (WayWithUncertainDirection w UnknownDirection)) next1 nexts1
 
 -- | Infer directions of ways of first interconnected segment of ways list.
 -- Remaining ways after first connection break are returned in remaining list
@@ -119,7 +128,7 @@ waysDirectionsComponent ways =
 -- | Infer direction on list of successive ways. Returns list of connected
 -- components, should be one component if route is valid.
 waysDirections :: [OSM.Way] -> [[WayWithUncertainDirection]]
-waysDirections ways = let (component, remaining) = waysDirectionsComponent ways
+waysDirections ways = let (component, remaining) =  waysDirectionsComponent ways
   in case remaining of
     [] -> [component]
     _  -> component : waysDirections remaining
@@ -139,8 +148,21 @@ instance Arbitrary OSM.NodeID where
   arbitrary = OSM.NodeID <$> arbitrary
 
 instance Arbitrary OSM.VersionInfo where
-  arbitrary = return $ OSM.VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
+  arbitrary = return $
+    OSM.VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
 
-prop_waysDirectionsSameLength :: [OSM.Way] -> Bool
-prop_waysDirectionsSameLength ways =
-  sum (length <$> waysDirections ways) == length ways
+prop_waysDirectionsTheSameWays :: [OSM.Way] -> Bool
+prop_waysDirectionsTheSameWays ways =
+  (way <$> concat (waysDirections ways)) == ways
+
+prop_waysDirectionsComponentTheSameWays :: [OSM.Way] -> Bool
+prop_waysDirectionsComponentTheSameWays ways =
+  (way <$> detected) ++ remaining == ways
+  where
+    (detected, remaining) = waysDirectionsComponent ways
+
+prop_shouldDetectAtLeastOneWay :: [OSM.Way] -> Bool
+prop_shouldDetectAtLeastOneWay ways =
+  not (null detected) || null ways
+  where
+    (detected, _) = waysDirectionsComponent ways
