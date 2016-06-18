@@ -1,9 +1,11 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module OSM where
 
 import Data.Time (UTCTime)
 import qualified Data.Map.Strict as Map
+import GHC.Generics
 
 newtype NodeID = NodeID Integer deriving (Show, Eq, Ord)
 newtype WayID = WayID Integer deriving (Show, Eq, Ord)
@@ -15,11 +17,11 @@ data ElementID =
   ElementNodeID NodeID |
   ElementWayID WayID |
   ElementRelationID RelationID
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 data RelationMember =
   RelationMember ElementID RelationRole
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 newtype Latitude = Latitude Float deriving (Show, Eq)
 newtype Longitude = Longitude Float deriving (Show, Eq)
@@ -27,7 +29,7 @@ newtype TagKey = TagKey String deriving (Show, Eq, Ord)
 
 type Tags = Map.Map TagKey String
 
-data Coordinates = Coordinates Latitude Longitude deriving (Show, Eq)
+data Coordinates = Coordinates Latitude Longitude deriving (Show, Eq, Generic)
 
 -- | Information about last modification, each field is optional
 data VersionInfo = VersionInfo
@@ -37,7 +39,7 @@ data VersionInfo = VersionInfo
   , visible :: Maybe Bool -- ^ visible? (only deleted elements are invisible)
   , version :: Maybe Integer -- ^ version number
   , changeset :: Maybe Integer -- ^ changeset number
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic)
 
 -- | Abstract OSM element with id "i" and payload "p". Contains fields common
 --   to all OSM elements: id, tags, version info
@@ -57,4 +59,4 @@ nodeIds = _payload
 
 data Dataset = Dataset (Map.Map NodeID Node)
                        (Map.Map WayID Way)
-                       (Map.Map RelationID Relation) deriving (Show)
+                       (Map.Map RelationID Relation) deriving (Show, Generic)

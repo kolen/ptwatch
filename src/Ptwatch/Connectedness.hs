@@ -1,24 +1,28 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Ptwatch.Connectedness
   ( WayWithDirection
   , WayWithUncertainDirection
+  , Direction
   , waysDirections
-  , prop_waysDirectionsTheSameWays
-  , prop_waysDirectionsComponentTheSameWays
-  , prop_shouldDetectAtLeastOneWay
+  , waysDirectionsComponent
+  , way
   )
 where
 
 import qualified OSM
 import qualified Data.Map.Strict as Map
 import Control.Applicative
-import Test.QuickCheck
 import Debug.Trace
+import Test.SmallCheck.Series
+import GHC.Generics
 
 data WayWithDirection = WayWithDirection OSM.Way Direction
+  deriving Generic
 data WayWithUncertainDirection =
-   WayWithUncertainDirection OSM.Way UncertainDirection deriving (Show)
+   WayWithUncertainDirection OSM.Way UncertainDirection deriving (Show, Generic)
 
 class WayAndDirection w where
   way :: w -> OSM.Way
@@ -27,7 +31,7 @@ instance WayAndDirection WayWithDirection where
 instance WayAndDirection WayWithUncertainDirection where
   way (WayWithUncertainDirection w _) = w
 
-data Direction = Forward | Backward deriving (Eq, Show)
+data Direction = Forward | Backward deriving (Eq, Show, Generic)
 data UncertainDirection = KnownDirection Direction | UnknownDirection deriving (Show)
 data Oneway = Oneway | ReverseOneway | NotOneway
 
@@ -132,37 +136,3 @@ waysDirections ways = let (component, remaining) =  waysDirectionsComponent ways
   in case remaining of
     [] -> [component]
     _  -> component : waysDirections remaining
-
-instance Arbitrary OSM.Way where
-  arbitrary = do
-    wayId <- arbitrary
-    let tags = Map.empty
-    nodeIds <- listOf1 arbitrary
-    versionInfo <- arbitrary
-    return $ OSM.Element wayId tags nodeIds versionInfo
-
-instance Arbitrary OSM.WayID where
-  arbitrary = OSM.WayID <$> arbitrary
-
-instance Arbitrary OSM.NodeID where
-  arbitrary = OSM.NodeID <$> arbitrary
-
-instance Arbitrary OSM.VersionInfo where
-  arbitrary = return $
-    OSM.VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
-
-prop_waysDirectionsTheSameWays :: [OSM.Way] -> Bool
-prop_waysDirectionsTheSameWays ways =
-  (way <$> concat (waysDirections ways)) == ways
-
-prop_waysDirectionsComponentTheSameWays :: [OSM.Way] -> Bool
-prop_waysDirectionsComponentTheSameWays ways =
-  (way <$> detected) ++ remaining == ways
-  where
-    (detected, remaining) = waysDirectionsComponent ways
-
-prop_shouldDetectAtLeastOneWay :: [OSM.Way] -> Bool
-prop_shouldDetectAtLeastOneWay ways =
-  not (null detected) || null ways
-  where
-    (detected, _) = waysDirectionsComponent ways
