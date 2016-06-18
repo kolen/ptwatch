@@ -43,7 +43,7 @@ data VersionInfo = VersionInfo
 
 -- | Abstract OSM element with id "i" and payload "p". Contains fields common
 --   to all OSM elements: id, tags, version info
-data Ord i => Element i p = Element
+data Element i p = Element
   { id :: i
   , tags :: Tags
   , _payload :: p
