@@ -116,6 +116,7 @@ waysDirectionsComponent :: [OSM.Way]
                         -> ([WayWithUncertainDirection], [OSM.Way])
                         -- ^ List of ways with detected directions;
                         --   Remaining ways after end of interconnected segment
+waysDirectionsComponent [] = ([], [])
 waysDirectionsComponent ways =
   wdc ways Nothing
   where
