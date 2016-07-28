@@ -38,12 +38,17 @@ instance Monad m => Serial m VersionInfo
 
 instance Monad m => Serial m Node where
   series = cons4 Element
+
+atLeast2Nodes :: NodeID -> NodeID -> [NodeID] -> [NodeID]
+atLeast2Nodes node1 node2 nodes = node1 : node2 : nodes
+
 instance Monad m => Serial m Way where
-  series = cons4 Element
+  series = decDepth (
+    Element <$> series
+            <~> series
+            <~> cons3 atLeast2Nodes
+            <~> series)
 instance Monad m => Serial m Relation where
   series = cons4 Element
 
--- instance Monad m => Serial m Node
--- instance Monad m => Serial m Way
--- instance Monad m => Serial m Relation
 instance Monad m => Serial m Dataset
