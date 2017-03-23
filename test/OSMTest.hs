@@ -3,6 +3,7 @@
 module OSMTest where
 
 import qualified Data.Map.Strict as Map
+import Control.Applicative
 import OSM
 import Test.SmallCheck.Series
 import Data.Time.Clock
@@ -39,16 +40,22 @@ instance Monad m => Serial m VersionInfo
 instance Monad m => Serial m Node where
   series = cons4 Element
 
-atLeast2Nodes :: NodeID -> NodeID -> [NodeID] -> [NodeID]
-atLeast2Nodes node1 node2 nodes = node1 : node2 : nodes
+atLeast2Nodes :: (Serial m a, Monad m) => Series m [a]
+atLeast2Nodes = (:) <$> series <~> ((:) <$> series <~> series)
 
 instance Monad m => Serial m Way where
   series = decDepth (
     Element <$> series
             <~> series
-            <~> cons3 atLeast2Nodes
+            <~> atLeast2Nodes
             <~> series)
 instance Monad m => Serial m Relation where
   series = cons4 Element
+
+simpleWay :: Monad m => Series m Way
+simpleWay = Element <$> pure (WayID 0) <*> pure Map.empty <*> series <*> pure emptyVersionInfo
+
+simpleWays :: Monad m => Series m [Way]
+simpleWays = cons0 [] \/ cons2 (:)
 
 instance Monad m => Serial m Dataset

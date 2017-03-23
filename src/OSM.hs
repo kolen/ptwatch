@@ -39,7 +39,12 @@ data VersionInfo = VersionInfo
   , visible :: Maybe Bool -- ^ visible? (only deleted elements are invisible)
   , version :: Maybe Integer -- ^ version number
   , changeset :: Maybe Integer -- ^ changeset number
-  } deriving (Show, Eq, Generic)
+  } deriving (Eq, Generic)
+
+instance Show VersionInfo where
+  show _ = ""
+
+emptyVersionInfo = VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Abstract OSM element with id "i" and payload "p". Contains fields common
 --   to all OSM elements: id, tags, version info
