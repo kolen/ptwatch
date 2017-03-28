@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
-module OSMTest where
+module OSM.OSMTest where
 
 import qualified Data.Map.Strict as Map
 import Control.Applicative
