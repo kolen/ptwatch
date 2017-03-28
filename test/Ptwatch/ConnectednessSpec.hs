@@ -12,6 +12,8 @@ spec :: Spec
 spec = do
   describe "Ptwatch.Connectedness" $ do
     describe "waysDirections" $ do
+      it "returns [] for []" $ do
+        waysDirections [] `shouldBe` []
       it "returns two unknown dir segments for broken route of two ways" $ do
         let way1 = Element (WayID 1) emptyTags [NodeID 1, NodeID 2]
               emptyVersionInfo
@@ -25,6 +27,8 @@ spec = do
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
           (way <$> concat (waysDirections ways)) == ways
     describe "waysDirectionsComponent" $ do
+      it "returns ([], []) for []" $ do
+        waysDirectionsComponent [] `shouldBe` ([], [])
       it "returns list containing the same ways as input" $ property $
         changeDepth (const 5) $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
