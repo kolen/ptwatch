@@ -136,6 +136,7 @@ waysDirectionsComponent ways =
 -- components, should be one component if route is valid.
 waysDirections :: [OSM.Way] -> [[WayWithUncertainDirection]]
 waysDirections ways = let (component, remaining) =  waysDirectionsComponent ways
-  in case remaining of
-    [] -> [component]
-    _  -> component : waysDirections remaining
+  in case (component, remaining) of
+    ([], []) -> []
+    (_,  []) -> [component]
+    (_,   _) -> component : waysDirections remaining
