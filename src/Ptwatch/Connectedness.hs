@@ -127,7 +127,7 @@ waysDirectionsComponent ways =
     wdc ws@[]      _    = ([], ws)
     wdc ws@(w:ws') prev = let dir = wayDirection prev w ws'
       in case dir of
-        Nothing    -> ([], ws)
+        Nothing    -> ([(WayWithUncertainDirection w UnknownDirection)], ws')
         (Just dir') -> let (wwd1, wr1) = wdc ws' (Just wwd)
                            wwd = WayWithUncertainDirection w dir'
                        in (wwd:wwd1, wr1)

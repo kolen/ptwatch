@@ -23,7 +23,7 @@ spec = do
       it "returns list containing the same ways as input" $ property $
         changeDepth (const 4) $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
-          traceShow ways $ (way <$> concat (waysDirections ways)) == ways
+          (way <$> concat (waysDirections ways)) == ways
     describe "waysDirectionsComponent" $ do
       it "returns list containing the same ways as input" $ property $
         changeDepth (const 5) $
