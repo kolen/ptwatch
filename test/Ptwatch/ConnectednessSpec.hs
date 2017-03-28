@@ -23,7 +23,6 @@ spec = do
              [[WayWithUncertainDirection way1 UnknownDirection],
               [WayWithUncertainDirection way2 UnknownDirection]]
       it "returns list containing the same ways as input" $ property $
-        changeDepth (const 4) $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
           (way <$> concat (waysDirections ways)) == ways
       it "returns list of non empty route segments" $ property $
@@ -33,7 +32,6 @@ spec = do
       it "returns ([], []) for []" $ do
         waysDirectionsComponent [] `shouldBe` ([], [])
       it "returns list containing the same ways as input" $ property $
-        changeDepth (const 5) $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
           let (detected, remaining) = waysDirectionsComponent ways in
             (way <$> detected) ++ remaining == ways
