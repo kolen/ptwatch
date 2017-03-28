@@ -65,36 +65,44 @@ instance Monad m => Serial m Dataset
 
 -- * Generation of simulated routes
 
-data FakePathSegment = NormalFakePathSegment
-                     | OnewayFakePathSegment
-                     | ReverseOnewayFakePathSegment
-                     | CycleFakePathSegment
-                     | FakePathBreak
+-- |Route segment represented by way. First argument is if reversed
+-- (except for cycle way), second is if to generate route
+-- discontinuity (break) after
+data FakePathSegment = NormalFakePathSegment Bool Bool
+                     | OnewayFakePathSegment Bool Bool
+                     | CycleFakePathSegment Bool
+                     deriving Show
 instance Monad m => Serial m FakePathSegment where
-  series = cons0 NormalFakePathSegment
-        \/ cons0 OnewayFakePathSegment
-        \/ cons0 ReverseOnewayFakePathSegment
-        \/ cons0 CycleFakePathSegment
-        \/ cons0 FakePathBreak
+  series = cons2 NormalFakePathSegment
+        \/ cons2 OnewayFakePathSegment
+        \/ cons1 CycleFakePathSegment
 
-data FakePathSequence = FakePathSequence [FakePathSegment]
+-- |Represents fake route
+newtype FakePathSequence = FakePathSequence [FakePathSegment] deriving (Show)
+instance Monad m => Serial m FakePathSequence where
+  series = newtypeCons FakePathSequence
 
 fromFakePathSequence :: FakePathSequence -> [Way]
 fromFakePathSequence (FakePathSequence fps) = snd $ mapAccumL accum 1 fps
   where
     accum :: Integer -> FakePathSegment -> (Integer, Way)
-    accum i NormalFakePathSegment =
-      (i + 2, Element (wayid i) Map.empty (nodes i) emptyVersionInfo)
-    accum i OnewayFakePathSegment =
-      (i + 2, Element (wayid i) (oneway "yes") (nodes i) emptyVersionInfo)
-    accum i ReverseOnewayFakePathSegment =
-      (i + 2, Element (wayid i) (oneway "-1") (nodes i) emptyVersionInfo)
-    accum i CycleFakePathSegment =
-      (i + 1, Element (wayid i) Map.empty (cycleNodes i) emptyVersionInfo)
-    accum i FakePathBreak =
-      (i + 3, Element (wayid i) Map.empty (nodes i) emptyVersionInfo)
+    accum i (NormalFakePathSegment rev brk) =
+      (i + 2 + (b' brk),
+       Element (wayid i) Map.empty (nodes i rev) emptyVersionInfo)
+    accum i (OnewayFakePathSegment True brk) =
+      (i + 2 + (b' brk),
+       Element (wayid i) (oneway "yes") (nodes i True) emptyVersionInfo)
+    accum i (OnewayFakePathSegment False brk) =
+      (i + 2 + (b' brk),
+       Element (wayid i) (oneway "-1") (nodes i False) emptyVersionInfo)
+    accum i (CycleFakePathSegment brk) =
+      (i + 0 + (b' brk),
+       Element (wayid i) Map.empty (cycleNodes i) emptyVersionInfo)
 
-    nodes i = [NodeID i, NodeID (i + 1), NodeID (i + 2)]
-    cycleNodes i = [NodeID i, NodeID (i + 1), NodeID i]
+    nodes i False = [NodeID i, NodeID (i + 1), NodeID (i + 2)]
+    nodes i True  = [NodeID (i + 2), NodeID (i + 1), NodeID i]
+    cycleNodes i =  [NodeID i, NodeID (i + 1), NodeID i]
     oneway t = (Map.singleton (TagKey "oneway") t)
     wayid i = (WayID (i + 1))
+    b' True = 1
+    b' False = 0
