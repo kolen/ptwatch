@@ -26,6 +26,9 @@ spec = do
         changeDepth (const 4) $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
           (way <$> concat (waysDirections ways)) == ways
+      it "returns list of non empty route segments" $ property $
+        \fakeroute -> let ways = fromFakePathSequence fakeroute in
+          not $ any null $ waysDirections ways
     describe "waysDirectionsComponent" $ do
       it "returns ([], []) for []" $ do
         waysDirectionsComponent [] `shouldBe` ([], [])
