@@ -88,7 +88,7 @@ wayDirectionByPair (Just (WayWithUncertainDirection prevW prevD) ) way =
     (True,  False) -> Just (KnownDirection Forward)
     (True,  True)  -> Just UnknownDirection
   where
-    directions = [p | p <- directionVariants prevD, c <- [Forward, Backward],
+    directions = [c | p <- directionVariants prevD, c <- [Forward, Backward],
       canBePaired (WayWithDirection prevW p) (WayWithDirection way c)]
 
 -- | Infer direction of way in connection with adjacent ways
