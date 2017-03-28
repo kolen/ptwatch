@@ -89,12 +89,12 @@ fromFakePathSequence (FakePathSequence fps) = snd $ mapAccumL accum 1 fps
     accum i (NormalFakePathSegment rev brk) =
       (i + 2 + (b' brk),
        Element (wayid i) Map.empty (nodes i rev) emptyVersionInfo)
-    accum i (OnewayFakePathSegment True brk) =
-      (i + 2 + (b' brk),
-       Element (wayid i) (oneway "yes") (nodes i True) emptyVersionInfo)
     accum i (OnewayFakePathSegment False brk) =
       (i + 2 + (b' brk),
-       Element (wayid i) (oneway "-1") (nodes i False) emptyVersionInfo)
+       Element (wayid i) (oneway "yes") (nodes i False) emptyVersionInfo)
+    accum i (OnewayFakePathSegment True brk) =
+      (i + 2 + (b' brk),
+       Element (wayid i) (oneway "-1") (nodes i True) emptyVersionInfo)
     accum i (CycleFakePathSegment brk) =
       (i + 0 + (b' brk),
        Element (wayid i) Map.empty (cycleNodes i) emptyVersionInfo)
