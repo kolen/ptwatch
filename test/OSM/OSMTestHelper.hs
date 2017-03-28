@@ -1,13 +1,16 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
-module OSM.OSMTest where
+module OSM.OSMTestHelper where
 
 import qualified Data.Map.Strict as Map
+import Data.List
 import Control.Applicative
 import OSM
 import Test.SmallCheck.Series
 import Data.Time.Clock
 import Data.Time.Calendar
+
+-- * Instances of Serial for basic OSM types and associated types
 
 instance Monad m => Serial m UTCTime where
   series = cons2 UTCTime
@@ -59,3 +62,39 @@ simpleWays :: Monad m => Series m [Way]
 simpleWays = cons0 [] \/ cons2 (:)
 
 instance Monad m => Serial m Dataset
+
+-- * Generation of simulated routes
+
+data FakePathSegment = NormalFakePathSegment
+                     | OnewayFakePathSegment
+                     | ReverseOnewayFakePathSegment
+                     | CycleFakePathSegment
+                     | FakePathBreak
+instance Monad m => Serial m FakePathSegment where
+  series = cons0 NormalFakePathSegment
+        \/ cons0 OnewayFakePathSegment
+        \/ cons0 ReverseOnewayFakePathSegment
+        \/ cons0 CycleFakePathSegment
+        \/ cons0 FakePathBreak
+
+data FakePathSequence = FakePathSequence [FakePathSegment]
+
+fromFakePathSequence :: FakePathSequence -> [Way]
+fromFakePathSequence (FakePathSequence fps) = snd $ mapAccumL accum 1 fps
+  where
+    accum :: Integer -> FakePathSegment -> (Integer, Way)
+    accum i NormalFakePathSegment =
+      (i + 2, Element (wayid i) Map.empty (nodes i) emptyVersionInfo)
+    accum i OnewayFakePathSegment =
+      (i + 2, Element (wayid i) (oneway "yes") (nodes i) emptyVersionInfo)
+    accum i ReverseOnewayFakePathSegment =
+      (i + 2, Element (wayid i) (oneway "-1") (nodes i) emptyVersionInfo)
+    accum i CycleFakePathSegment =
+      (i + 1, Element (wayid i) Map.empty (cycleNodes i) emptyVersionInfo)
+    accum i FakePathBreak =
+      (i + 3, Element (wayid i) Map.empty (nodes i) emptyVersionInfo)
+
+    nodes i = [NodeID i, NodeID (i + 1), NodeID (i + 2)]
+    cycleNodes i = [NodeID i, NodeID (i + 1), NodeID i]
+    oneway t = (Map.singleton (TagKey "oneway") t)
+    wayid i = (WayID (i + 1))

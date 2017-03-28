@@ -30,7 +30,7 @@ test-suite ptwatch-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       OSM.OSMTest
+  other-modules:       OSM.OSMTestHelper
   build-depends:       base,
                        hspec,
                        hspec-smallcheck,

@@ -4,7 +4,7 @@ import Test.Hspec
 import Test.Hspec.SmallCheck
 import Test.SmallCheck
 import OSM
-import OSM.OSMTest
+import OSM.OSMTestHelper
 import Ptwatch.Connectedness
 
 spec :: Spec
