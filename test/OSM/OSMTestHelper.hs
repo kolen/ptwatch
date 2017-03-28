@@ -9,6 +9,7 @@ import OSM
 import Test.SmallCheck.Series
 import Data.Time.Clock
 import Data.Time.Calendar
+import Debug.Trace
 
 -- * Instances of Serial for basic OSM types and associated types
 
@@ -77,10 +78,21 @@ instance Monad m => Serial m FakePathSegment where
         \/ cons2 OnewayFakePathSegment
         \/ cons1 CycleFakePathSegment
 
+hasBreak :: FakePathSegment -> Bool
+hasBreak (NormalFakePathSegment _ True) = True
+hasBreak (OnewayFakePathSegment _ True) = True
+hasBreak (CycleFakePathSegment True) = True
+hasBreak _ = False
+
 -- |Represents fake route
 newtype FakePathSequence = FakePathSequence [FakePathSegment] deriving (Show)
 instance Monad m => Serial m FakePathSequence where
   series = newtypeCons FakePathSequence
+
+hasBreaks :: FakePathSequence -> Bool
+hasBreaks (FakePathSequence ways) = case findIndex hasBreak ways of
+  Nothing -> False
+  Just x -> x /= ((length ways) - 1)
 
 fromFakePathSequence :: FakePathSequence -> [Way]
 fromFakePathSequence (FakePathSequence fps) = snd $ mapAccumL accum 1 fps

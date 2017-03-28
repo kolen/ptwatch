@@ -1,5 +1,6 @@
 module Ptwatch.ConnectednessSpec (spec) where
 
+import Data.List
 import Test.Hspec
 import Test.Hspec.SmallCheck
 import Test.SmallCheck
@@ -28,6 +29,15 @@ spec = do
       it "returns list of non empty route segments" $ property $
         \fakeroute -> let ways = fromFakePathSequence fakeroute in
           not $ any null $ waysDirections ways
+      it "detects if there are discontinuities or not" $ property $
+        \fakeroute -> let ways = fromFakePathSequence fakeroute
+                          fakeWays = case fakeroute of FakePathSequence s -> s
+                          detectedBreaks = case waysDirections ways of
+                            [] -> False
+                            _:[] -> False
+                            _ -> True
+                      in hasBreaks fakeroute == detectedBreaks
+
     describe "waysDirectionsComponent" $ do
       it "returns ([], []) for []" $ do
         waysDirectionsComponent [] `shouldBe` ([], [])
