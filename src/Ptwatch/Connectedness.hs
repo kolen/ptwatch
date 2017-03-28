@@ -1,11 +1,11 @@
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Ptwatch.Connectedness
   ( WayWithDirection
-  , WayWithUncertainDirection
+  , WayWithUncertainDirection(..)
   , Direction
+  , UncertainDirection(..)
   , waysDirections
   , waysDirectionsComponent
   , way
@@ -22,7 +22,8 @@ import GHC.Generics
 data WayWithDirection = WayWithDirection OSM.Way Direction
   deriving Generic
 data WayWithUncertainDirection =
-   WayWithUncertainDirection OSM.Way UncertainDirection deriving (Show, Generic)
+  WayWithUncertainDirection OSM.Way UncertainDirection
+  deriving (Show, Generic, Eq)
 
 class WayAndDirection w where
   way :: w -> OSM.Way
@@ -32,7 +33,8 @@ instance WayAndDirection WayWithUncertainDirection where
   way (WayWithUncertainDirection w _) = w
 
 data Direction = Forward | Backward deriving (Eq, Show, Generic)
-data UncertainDirection = KnownDirection Direction | UnknownDirection deriving (Show)
+data UncertainDirection = KnownDirection Direction | UnknownDirection
+  deriving (Show, Eq)
 data Oneway = Oneway | ReverseOneway | NotOneway
 
 -- | List of possible directions of UncertainDirection

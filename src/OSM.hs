@@ -45,6 +45,7 @@ instance Show VersionInfo where
   show _ = ""
 
 emptyVersionInfo = VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
+emptyTags = Map.empty
 
 -- | Abstract OSM element with id "i" and payload "p". Contains fields common
 --   to all OSM elements: id, tags, version info
