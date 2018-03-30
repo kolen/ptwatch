@@ -2,9 +2,11 @@
 module OSM.Parse (parseXMLFile)
 where
 
+import Data.Int (Int64)
 import Text.XML.HXT.Core
 import qualified OSM
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 nothingIfEmpty :: String -> Maybe String
 nothingIfEmpty x = if x == "" then Nothing else Just x
@@ -14,74 +16,49 @@ numericAttr x = case reads x of
     [(v,"")] -> Just v
     _        -> Nothing
 
-tagElementToKeyValue :: ArrowXml t => t XmlTree (OSM.TagKey, String)
+tagElementToKeyValue :: ArrowXml t => t XmlTree (OSM.TagKey, T.Text)
 tagElementToKeyValue = proc el -> do
   key <- getAttrValue "k" -< el
   value <- getAttrValue "v" -< el
-  returnA -< (OSM.TagKey key, value)
-
+  returnA -< (OSM.TagKey (T.pack key), T.pack value)
 
 topLevelTag :: ArrowXml t => String -> t XmlTree XmlTree
 topLevelTag tag = getChildren >>> hasName "osm" /> hasName tag
-
 
 getOSMTags :: ArrowXml t => t XmlTree OSM.Tags
 getOSMTags = listA (getChildren >>> hasName "tag" >>> tagElementToKeyValue)
   >>> arr Map.fromList
 
-
-getOSMVersionInfo :: ArrowXml a => a XmlTree OSM.VersionInfo
-getOSMVersionInfo = proc n -> do
-  user <- getAttrValue "user" -< n
-  uidS <- getAttrValue "uid" -< n
-  versionS <- getAttrValue "version" -< n
-  changesetS <- getAttrValue "changeset" -< n
-  timestampS <- getAttrValue "timestamp" -< n
-  let uid = numericAttr uidS
-  let version = numericAttr versionS
-  let changeset = numericAttr changesetS
-  let timestamp = numericAttr timestampS
-  let visible = Nothing
-  returnA -< OSM.VersionInfo { OSM.user=nothingIfEmpty user
-                             , OSM.uid=uid
-                             , OSM.version=version
-                             , OSM.changeset=changeset
-                             , OSM.timestamp=timestamp
-                             , OSM.visible=visible
-                             }
-
-getOSMID :: ArrowXml a => a XmlTree Integer
+getOSMID :: ArrowXml a => a XmlTree Int64
 getOSMID = getAttrValue "id" >>> arr read
 
-getOSMNode :: ArrowXml t => t XmlTree OSM.Node
+getOSMNode :: ArrowXml t => t XmlTree (OSM.Node ())
 getOSMNode = topLevelTag "node" >>>
   proc x -> do
     nodeId <- getOSMID -< x
     tags <- getOSMTags -< x
-    versionInfo <- getOSMVersionInfo -< x
 
     latS <- getAttrValue "lat" -< x
     lonS <- getAttrValue "lon" -< x
     let lat = read latS
     let lon = read lonS
 
-    returnA -< OSM.Element (OSM.NodeID nodeId) tags (OSM.Coordinates (OSM.Latitude lat) (OSM.Longitude lon)) versionInfo
+    returnA -< OSM.node (OSM.NodeID nodeId) tags
+      (OSM.Coordinates { OSM.latitude = lat, OSM.longitude = lon })
 
 getOSMWayNodes :: ArrowXml t => t XmlTree [OSM.NodeID]
 getOSMWayNodes = listA $ getChildren >>> hasName "nd" >>> getAttrValue "ref" >>> arr read >>> arr OSM.NodeID
 
-getOSMWay :: ArrowXml t => t XmlTree OSM.Way
+getOSMWay :: ArrowXml t => t XmlTree (OSM.Way ())
 getOSMWay = topLevelTag "way" >>>
   proc x -> do
     wayId <- getOSMID -< x
     tags <- getOSMTags -< x
-    versionInfo <- getOSMVersionInfo -< x
-
     nodes <- getOSMWayNodes -< x
 
-    returnA -< OSM.Element (OSM.WayID wayId) tags nodes versionInfo
+    returnA -< OSM.way (OSM.WayID wayId) tags nodes
 
-elementIdByType :: String -> Integer -> OSM.ElementID
+elementIdByType :: String -> Int64 -> OSM.ElementID
 elementIdByType "node" i = OSM.ElementNodeID (OSM.NodeID i)
 elementIdByType "way" i =  OSM.ElementWayID (OSM.WayID i)
 elementIdByType "relation" i = OSM.ElementRelationID (OSM.RelationID i)
@@ -95,24 +72,21 @@ getOSMRelationMembers = listA $ getChildren >>> hasName "member" >>>
     role <- getAttrValue "role" -< x
     let elId = read elIdS
     let elementId = elementIdByType typeS elId
-    returnA -< OSM.RelationMember elementId (OSM.RelationRole role)
+    returnA -< OSM.RelationMember elementId (OSM.RelationRole (T.pack role))
 
-getOSMRelation :: ArrowXml t => t XmlTree OSM.Relation
+getOSMRelation :: ArrowXml t => t XmlTree (OSM.Relation ())
 getOSMRelation = topLevelTag "relation" >>>
   proc x -> do
     relationId <- getOSMID -< x
     tags <- getOSMTags -< x
-    versionInfo <- getOSMVersionInfo -< x
-
     members <- getOSMRelationMembers -< x
 
-    returnA -< OSM.Element (OSM.RelationID relationId) tags members versionInfo
+    returnA -< OSM.relation (OSM.RelationID relationId) tags members
 
-listToMap :: Ord i => [OSM.Element i p] -> Map.Map i (OSM.Element i p)
-listToMap =  Map.fromList . map elementToPair
-  where elementToPair el = (OSM.id el, el)
+listToMap :: (Ord i) => [OSM.Element i p v] -> Map.Map i (OSM.Element i p v)
+listToMap list = Map.fromList $ map (\o -> (OSM.id o, o)) list
 
-getOSMEverything :: ArrowXml t => t XmlTree OSM.Dataset
+getOSMEverything :: ArrowXml t => t XmlTree (OSM.Dataset ())
 getOSMEverything = proc x -> do
   nodes <- listA getOSMNode -< x
   ways <- listA getOSMWay -< x
@@ -122,7 +96,7 @@ getOSMEverything = proc x -> do
   let relationsMap = listToMap relations
   returnA -< OSM.Dataset nodesMap waysMap relationsMap
 
-parseXMLFile :: String -> IO OSM.Dataset
+parseXMLFile :: String -> IO (OSM.Dataset ())
 parseXMLFile filename = do
   results <- runX (readDocument [] filename >>> getOSMEverything)
   return (case results of [result] -> result

@@ -1,68 +1,77 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module OSM where
+module OSM
+  ( NodeID(..) , WayID(..), RelationID(..),
+    RelationRole(..), ElementID(..), RelationMember(..),
+    TagKey(..), Tags(..),
+    Coordinates(..),
+    Element(..), Node, Way, Relation,
+    node, way, relation,
+    Dataset(..)
+  )
 
-import Data.Time (UTCTime)
+where
+
+import Data.Int (Int64)
 import qualified Data.Map.Strict as Map
-import GHC.Generics
+import qualified Data.Text as T
 
-newtype NodeID = NodeID Integer deriving (Show, Eq, Ord)
-newtype WayID = WayID Integer deriving (Show, Eq, Ord)
-newtype RelationID = RelationID Integer deriving (Show, Eq, Ord)
-
-newtype RelationRole = RelationRole String deriving (Show, Eq)
+newtype NodeID = NodeID Int64 deriving (Show, Eq, Ord)
+newtype WayID = WayID Int64 deriving (Show, Eq, Ord)
+newtype RelationID = RelationID Int64 deriving (Show, Eq, Ord)
+newtype RelationRole = RelationRole T.Text deriving (Show, Eq)
 
 data ElementID =
   ElementNodeID NodeID |
   ElementWayID WayID |
   ElementRelationID RelationID
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq)
 
 data RelationMember =
   RelationMember ElementID RelationRole
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq)
 
 newtype Latitude = Latitude Float deriving (Show, Eq)
 newtype Longitude = Longitude Float deriving (Show, Eq)
-newtype TagKey = TagKey String deriving (Show, Eq, Ord)
+newtype TagKey = TagKey T.Text deriving (Show, Eq, Ord)
 
-type Tags = Map.Map TagKey String
+type Tags = Map.Map TagKey T.Text
 
-data Coordinates = Coordinates Latitude Longitude deriving (Show, Eq, Generic)
+-- Actually coordinates are not floats, but floats are suitable for
+-- this app, it does not do much geometry calculation. Change to
+-- proper data types if geometry calculations are needed.
+--
+-- "Latitude and Longitude are stored as scaled integers with a scale
+-- factor of 1e7, so an integer latitude of -412870685 equates to
+-- -41.2870685."
+--
+-- https://wiki.openstreetmap.org/wiki/Rails_port/Database_schema#Nodes
+data Coordinates = Coordinates
+  { latitude :: Float
+  , longitude :: Float }
+  deriving (Show, Eq)
 
--- | Information about last modification, each field is optional
-data VersionInfo = VersionInfo
-  { user :: Maybe String -- ^ user name (user last modified this element)
-  , uid :: Maybe Integer -- ^ user ID (user last modified this element)
-  , timestamp :: Maybe UTCTime -- ^ timestamp (last modified time)
-  , visible :: Maybe Bool -- ^ visible? (only deleted elements are invisible)
-  , version :: Maybe Integer -- ^ version number
-  , changeset :: Maybe Integer -- ^ changeset number
-  } deriving (Eq, Generic)
-
-instance Show VersionInfo where
-  show _ = ""
-
-emptyVersionInfo = VersionInfo Nothing Nothing Nothing Nothing Nothing Nothing
-emptyTags = Map.empty
-
--- | Abstract OSM element with id "i" and payload "p". Contains fields common
---   to all OSM elements: id, tags, version info
-data Element i p = Element
+data Element i p v = Element
   { id :: i
   , tags :: Tags
-  , _payload :: p
-  , versionInfo :: VersionInfo
-} deriving (Show, Eq)
+  , payload :: p
+  , versionInfo :: v }
+  deriving (Show, Eq)
 
-type Node     = Element NodeID Coordinates
-type Way      = Element WayID [NodeID]
-type Relation = Element RelationID [RelationMember]
+type Node v = Element NodeID Coordinates v
+type Way v = Element WayID [NodeID] v
+type Relation v = Element RelationID [RelationMember] v
 
-nodeIds :: Way -> [NodeID]
-nodeIds = _payload
+node :: NodeID -> Tags -> Coordinates -> Node ()
+node i t c = Element i t c ()
 
-data Dataset = Dataset (Map.Map NodeID Node)
-                       (Map.Map WayID Way)
-                       (Map.Map RelationID Relation) deriving (Show, Generic)
+way :: WayID -> Tags -> [NodeID] -> Way ()
+way i t n = Element i t n ()
+
+relation :: RelationID -> Tags -> [RelationMember] -> Relation ()
+relation i t m = Element i t m ()
+
+data Dataset v = Dataset
+  (Map.Map NodeID (Node v))
+  (Map.Map WayID (Way v))
+  (Map.Map RelationID (Relation v)) deriving (Show)
