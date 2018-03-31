@@ -1,5 +1,5 @@
 {-# LANGUAGE Arrows #-}
-module OSM.Parse (parseXMLFile)
+module OSM.XML (parseXMLFile)
 where
 
 import Data.Int (Int64)
