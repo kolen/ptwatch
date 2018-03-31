@@ -8,14 +8,6 @@ import qualified OSM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
-nothingIfEmpty :: String -> Maybe String
-nothingIfEmpty x = if x == "" then Nothing else Just x
-
-numericAttr :: (Read a) => String -> Maybe a
-numericAttr x = case reads x of
-    [(v,"")] -> Just v
-    _        -> Nothing
-
 tagElementToKeyValue :: ArrowXml t => t XmlTree (OSM.TagKey, T.Text)
 tagElementToKeyValue = proc el -> do
   key <- getAttrValue "k" -< el
