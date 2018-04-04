@@ -19,9 +19,6 @@ data WayWithDirection v =
 newtype Matcher s r = Matcher { match :: [s] -> (r, [s]) }
 type WaysMatcher v = Matcher (OSM.Way v) [WayWithPossibleDirection v]
 
-connectedWays :: [OSM.Way v] -> [[WayWithPossibleDirection v]]
-connectedWays = undefined
-
 data MatcherHead v =
   MatcherHead [WayWithDirection v] (Maybe OSM.NodeID) deriving (Show)
 
@@ -91,3 +88,23 @@ firstConnectedWays ways = (connectVariants, remainingWays)
     wayFromHead (MatcherHead way _) = way
     (finalHeads, remainingWays) =
       advanceMatchersWhilePossible [startingMatcherHead] ways
+
+connectedWays :: (Show v) => [OSM.Way v] -> [[WayWithPossibleDirection v]]
+connectedWays ways =
+  case neWays of
+    Nothing -> []
+    Just ways' ->
+      let (connectVariants, remainingWays) = firstConnectedWays ways'
+          connectVariants' = multiToPossible connectVariants
+      in
+      case remainingWays of
+        [] -> [connectVariants']
+        _ -> connectVariants' : connectedWays remainingWays
+  where
+    neWays = nonEmpty ways
+
+    multiToPossible :: [[WayWithDirection v]] -> [WayWithPossibleDirection v]
+    multiToPossible [variant1, _variant2] = wayToUncertain <$> variant1
+    multiToPossible [variant] = wayToPossible <$> variant
+    wayToUncertain (WayWithDirection _ w) = WayWithPossibleDirection Nothing w
+    wayToPossible (WayWithDirection d w) = WayWithPossibleDirection (Just d) w
