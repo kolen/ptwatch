@@ -67,10 +67,17 @@ prop_extendsEmptyConsumesNonOneway = property $ do
 prop_firstConnectedWaysAtLeastOneWay :: Property
 prop_firstConnectedWaysAtLeastOneWay = property $ do
   ways <- forAll simpleWays
-  let (directions, remaining) = C.firstConnectedWays ways
-  footnoteShow directions
-  footnoteShow $ length directions
-  assert $ (length directions) >= 1
+  let (variants, remaining) = C.firstConnectedWays ways
+  annotateShow variants
+  assert $ (length variants) >= 1
+
+prop_firstConnectedWaysReturnRemaining :: Property
+prop_firstConnectedWaysReturnRemaining = property $ do
+  ways <- forAll simpleWays
+  let (variants, remaining) = C.firstConnectedWays ways
+  annotateShow variants
+  annotateShow remaining
+  assert $ all (\wds -> length wds + length remaining == length ways) variants
 
 spec = do
   describe "Ptwatch.Connectedness" $ do
@@ -86,3 +93,5 @@ spec = do
       context "for nonempty input" $ do
         it "returns list with at least one way" $ do
           require prop_firstConnectedWaysAtLeastOneWay
+        it "returns count of ways + remaining the same as input count" $ do
+          require prop_firstConnectedWaysReturnRemaining
