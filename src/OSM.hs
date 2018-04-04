@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module OSM
   ( NodeID(..) , WayID(..), RelationID(..),
@@ -7,6 +8,7 @@ module OSM
     Coordinates(..),
     Element(..), Node, Way, Relation,
     node, way, relation,
+    nodes, members,
     Dataset(..)
   )
 
@@ -16,7 +18,7 @@ import Data.Int (Int64)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
-newtype NodeID = NodeID Int64 deriving (Show, Eq, Ord)
+newtype NodeID = NodeID Int64 deriving (Show, Eq, Ord, Num)
 newtype WayID = WayID Int64 deriving (Show, Eq, Ord)
 newtype RelationID = RelationID Int64 deriving (Show, Eq, Ord)
 newtype RelationRole = RelationRole T.Text deriving (Show, Eq)
@@ -70,6 +72,12 @@ way i t n = Element i t n ()
 
 relation :: RelationID -> Tags -> [RelationMember] -> Relation ()
 relation i t m = Element i t m ()
+
+nodes :: Way v -> [NodeID]
+nodes = payload
+
+members :: Relation v -> [RelationMember]
+members = payload
 
 data Dataset v = Dataset
   (Map.Map NodeID (Node v))

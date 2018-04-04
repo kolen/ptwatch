@@ -1,51 +1,51 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Ptwatch.ConnectednessSpec (spec) where
 
-import Data.List
+import qualified Data.Map.Strict as Map
 import Test.Hspec
-import Test.Hspec.SmallCheck
-import Test.SmallCheck
-import OSM
-import OSM.OSMTestHelper
-import Ptwatch.Connectedness
-import Debug.Trace
+import Hedgehog
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
+import HaskellWorks.Hspec.Hedgehog
+import qualified OSM
+import qualified Ptwatch.Connectedness as C
 
-spec :: Spec
+ways :: Gen [OSM.Way ()]
+ways = Gen.list (Range.linear 2 10) ( OSM.way
+  <$> (OSM.WayID <$> (Gen.int64 (Range.constant 0 5)))
+  <*> Gen.constant Map.empty
+  <*> Gen.list (Range.linear 2 3)
+               (OSM.NodeID <$> (Gen.int64 (Range.constant 0 5))))
+
+way :: Gen (OSM.Way ())
+way = OSM.way
+  <$> (OSM.WayID <$> (Gen.int64 (Range.constant 0 5)))
+  <*> direction
+  <*> Gen.list (Range.linear 2 3)
+               (OSM.NodeID <$> (Gen.int64 (Range.constant 0 5)))
+  where
+    direction = Gen.choice [ Gen.constant Map.empty
+                           , Gen.constant $ Map.fromList [(oneway, "yes")]
+                           , Gen.constant $ Map.fromList [(oneway, "reverse")]
+                           ]
+    oneway = OSM.TagKey "oneway"
+
+simpleMatcherHead :: Gen (C.MatcherHead ())
+simpleMatcherHead = do
+  lastNodeID <- OSM.NodeID <$> Gen.int64 (Range.constant 2 10)
+  let way = OSM.way (OSM.WayID 1) Map.empty [OSM.NodeID 1, lastNodeID]
+  return $ C.MatcherHead [C.WayWithDirection C.Forward way] (Just lastNodeID)
+
+prop_extendsGivesResult :: Property
+prop_extendsGivesResult = property $ do
+  head <- forAll simpleMatcherHead
+  way <- forAll way
+  let result = C.advanceMatcher head way
+  assert $ (length result) == 1 || (length result) == 0
+
 spec = do
   describe "Ptwatch.Connectedness" $ do
-    describe "waysDirections" $ do
-      it "returns [] for []" $ do
-        waysDirections [] `shouldBe` []
-      it "returns two unknown dir segments for broken route of two ways" $ do
-        let way1 = Element (WayID 1) emptyTags [NodeID 1, NodeID 2]
-              emptyVersionInfo
-            way2 = Element (WayID 2) emptyTags [NodeID 3, NodeID 4]
-              emptyVersionInfo
-          in waysDirections [way1, way2] `shouldBe`
-             [[WayWithUncertainDirection way1 UnknownDirection],
-              [WayWithUncertainDirection way2 UnknownDirection]]
-      it "returns list containing the same ways as input" $ property $
-        \fakeroute -> let ways = fromFakePathSequence fakeroute in
-          (way <$> concat (waysDirections ways)) == ways
-      it "returns list of non empty route segments" $ property $
-        \fakeroute -> let ways = fromFakePathSequence fakeroute in
-          not $ any null $ waysDirections ways
-      it "detects if there are discontinuities or not" $ property $
-        \fakeroute -> let ways = fromFakePathSequence fakeroute
-                          fakeWays = case fakeroute of FakePathSequence s -> s
-                          detectedBreaks = case waysDirections ways of
-                            [] -> False
-                            _:[] -> False
-                            _ -> True
-                      in hasBreaks fakeroute == detectedBreaks
-
-    describe "waysDirectionsComponent" $ do
-      it "returns ([], []) for []" $ do
-        waysDirectionsComponent [] `shouldBe` ([], [])
-      it "returns list containing the same ways as input" $ property $
-        \fakeroute -> let ways = fromFakePathSequence fakeroute in
-          let (detected, remaining) = waysDirectionsComponent ways in
-            (way <$> detected) ++ remaining == ways
-      it "detects at least one way" $ property $
-        \fakeroute -> let ways = fromFakePathSequence fakeroute in
-          let (detected, _) = waysDirectionsComponent ways in
-            not (null detected) || null ways
+    describe "advanceMatcher" $ do
+      it "returns result of one or zero choices" $
+        require prop_extendsGivesResult
