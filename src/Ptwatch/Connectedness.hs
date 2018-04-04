@@ -4,6 +4,7 @@ module Ptwatch.Connectedness
 
 where
 
+import Data.List.NonEmpty (NonEmpty(..), toList, nonEmpty)
 import qualified OSM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -23,6 +24,9 @@ connectedWays = undefined
 
 data MatcherHead v =
   MatcherHead [WayWithDirection v] (Maybe OSM.NodeID) deriving (Show)
+
+startingMatcherHead :: MatcherHead v
+startingMatcherHead = MatcherHead [] Nothing
 
 data Oneway = Oneway | ReverseOneway | NotOneway deriving (Eq)
 
@@ -59,3 +63,31 @@ advanceMatcherDir (MatcherHead oldWays startingNode) way direction =
 advanceMatcher :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
 advanceMatcher head way =
   [Forward, Backward] >>= advanceMatcherDir head way
+
+advanceMatchers :: (Show v) => [MatcherHead v] -> OSM.Way v -> [MatcherHead v]
+advanceMatchers heads ways = do
+  head <- heads
+  newHead <- advanceMatcher head ways
+  return newHead
+
+advanceMatchersWhilePossible ::
+  (Show v) => [MatcherHead v] -> NonEmpty (OSM.Way v)
+  -> ([MatcherHead v], [OSM.Way v])
+advanceMatchersWhilePossible heads ways@(way:|restWays) =
+  case advanceMatchers heads way of
+    [] -> (heads, toList ways)
+    newHeads -> case nonEmpty restWays of
+      Nothing -> (newHeads, [])
+      Just restWays' -> advanceMatchersWhilePossible newHeads restWays'
+
+-- | Finds direction of first group of connected ways in list of
+-- ways. Returns list of variants of how ways can be connected and
+-- remaining ways after first break
+firstConnectedWays ::
+  (Show v) => NonEmpty (OSM.Way v) -> ([[WayWithDirection v]], [OSM.Way v])
+firstConnectedWays ways = (connectVariants, remainingWays)
+  where
+    connectVariants = wayFromHead <$> finalHeads
+    wayFromHead (MatcherHead way _) = way
+    (finalHeads, remainingWays) =
+      advanceMatchersWhilePossible [startingMatcherHead] ways

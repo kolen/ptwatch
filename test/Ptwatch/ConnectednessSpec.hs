@@ -4,6 +4,8 @@ module Ptwatch.ConnectednessSpec (spec) where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Data.List.NonEmpty (NonEmpty(..), toList, nonEmpty)
+import Data.Maybe (fromJust)
 import Test.Hspec
 import Hedgehog
 import qualified Hedgehog.Gen as Gen
@@ -12,8 +14,8 @@ import HaskellWorks.Hspec.Hedgehog
 import qualified OSM
 import qualified Ptwatch.Connectedness as C
 
-ways :: Gen [OSM.Way ()]
-ways = Gen.list (Range.linear 2 10) ( OSM.way
+simpleWays :: Gen (NonEmpty (OSM.Way ()))
+simpleWays = fromJust <$> nonEmpty <$> Gen.list (Range.linear 2 10) ( OSM.way
   <$> (OSM.WayID <$> (Gen.int64 (Range.constant 0 5)))
   <*> Gen.constant Map.empty
   <*> Gen.list (Range.linear 2 3)
@@ -62,6 +64,14 @@ prop_extendsEmptyConsumesNonOneway = property $ do
         <*> Gen.list (Range.linear 2 3)
         (OSM.NodeID <$> (Gen.int64 (Range.constant 1 5)))
 
+prop_firstConnectedWaysAtLeastOneWay :: Property
+prop_firstConnectedWaysAtLeastOneWay = property $ do
+  ways <- forAll simpleWays
+  let (directions, remaining) = C.firstConnectedWays ways
+  footnoteShow directions
+  footnoteShow $ length directions
+  assert $ (length directions) >= 1
+
 spec = do
   describe "Ptwatch.Connectedness" $ do
     describe "advanceMatcher" $ do
@@ -72,3 +82,7 @@ spec = do
         context "for non-oneway ways" $ do
           it "returns result of two variants" $
             require prop_extendsEmptyConsumesNonOneway
+    describe "firstConnectedWays" $ do
+      context "for nonempty input" $ do
+        it "returns list with at least one way" $ do
+          require prop_firstConnectedWaysAtLeastOneWay
