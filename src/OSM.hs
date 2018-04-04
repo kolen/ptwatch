@@ -58,7 +58,7 @@ data Element i p v = Element
   , tags :: Tags
   , payload :: p
   , versionInfo :: v }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 type Node v = Element NodeID Coordinates v
 type Way v = Element WayID [NodeID] v

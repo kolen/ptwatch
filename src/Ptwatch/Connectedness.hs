@@ -8,11 +8,12 @@ import qualified OSM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
-data Direction = Forward | Backward deriving (Show)
+data Direction = Forward | Backward deriving (Eq, Ord, Show)
 data WayWithPossibleDirection v =
-  WayWithPossibleDirection (Maybe Direction) (OSM.Way v) deriving (Show)
+  WayWithPossibleDirection (Maybe Direction) (OSM.Way v)
+  deriving (Eq, Ord, Show)
 data WayWithDirection v =
-  WayWithDirection Direction (OSM.Way v) deriving (Show)
+  WayWithDirection Direction (OSM.Way v) deriving (Eq, Ord, Show)
 
 newtype Matcher s r = Matcher { match :: [s] -> (r, [s]) }
 type WaysMatcher v = Matcher (OSM.Way v) [WayWithPossibleDirection v]

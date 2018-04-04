@@ -3,6 +3,7 @@
 module Ptwatch.ConnectednessSpec (spec) where
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Test.Hspec
 import Hedgehog
 import qualified Hedgehog.Gen as Gen
@@ -44,8 +45,30 @@ prop_extendsGivesResult = property $ do
   let result = C.advanceMatcher head way
   assert $ (length result) == 1 || (length result) == 0
 
+prop_extendsEmptyConsumesNonOneway :: Property
+prop_extendsEmptyConsumesNonOneway = property $ do
+  let head = C.MatcherHead [] Nothing
+  way <- forAll nonOnewayWay
+  let result = C.advanceMatcher head way
+  Set.fromList (headWay <$> result) ===
+    Set.fromList [ [C.WayWithDirection C.Forward way]
+                 , [C.WayWithDirection C.Backward way] ]
+    where
+      headWay (C.MatcherHead w _) = w
+      nonOnewayWay :: Gen (OSM.Way ())
+      nonOnewayWay = OSM.way
+        <$> (OSM.WayID <$> (Gen.int64 (Range.constant 1 5)))
+        <*> Gen.constant Map.empty
+        <*> Gen.list (Range.linear 2 3)
+        (OSM.NodeID <$> (Gen.int64 (Range.constant 1 5)))
+
 spec = do
   describe "Ptwatch.Connectedness" $ do
     describe "advanceMatcher" $ do
-      it "returns result of one or zero choices" $
-        require prop_extendsGivesResult
+      context "when starting from single way" $ do
+        it "returns result of one or zero choices" $
+          require prop_extendsGivesResult
+      context "when starging from empty head" $ do
+        context "for non-oneway ways" $ do
+          it "returns result of two variants" $
+            require prop_extendsEmptyConsumesNonOneway
