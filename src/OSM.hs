@@ -8,7 +8,7 @@ module OSM
     Coordinates(..),
     Element(..), Node, Way, Relation,
     node, way, relation,
-    nodes, members,
+    nodeIDs, members,
     Dataset(..)
   )
 
@@ -73,8 +73,8 @@ way i t n = Element i t n ()
 relation :: RelationID -> Tags -> [RelationMember] -> Relation ()
 relation i t m = Element i t m ()
 
-nodes :: Way v -> [NodeID]
-nodes = payload
+nodeIDs :: Way v -> [NodeID]
+nodeIDs = payload
 
 members :: Relation v -> [RelationMember]
 members = payload

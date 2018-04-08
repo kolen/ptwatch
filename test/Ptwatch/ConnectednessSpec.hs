@@ -38,23 +38,29 @@ simpleMatcherHead :: Gen (C.MatcherHead ())
 simpleMatcherHead = do
   lastNodeID <- OSM.NodeID <$> Gen.int64 (Range.constant 2 10)
   let way = OSM.way (OSM.WayID 1) Map.empty [OSM.NodeID 1, lastNodeID]
-  return $ C.MatcherHead [C.WayWithDirection C.Forward way] (Just lastNodeID)
+  return $ C.MatcherHead [C.WayWithPossibleDirection (Just C.Forward) way] (Just lastNodeID)
 
-prop_extendsGivesResult :: Property
-prop_extendsGivesResult = property $ do
+-- | Extending head with any way gives one or zero results when head
+-- has last point
+prop_extendsOneOrZeroForNonFirst :: Property
+prop_extendsOneOrZeroForNonFirst = withTests 1000 $ property $ do
   head <- forAll simpleMatcherHead
   way <- forAll way
-  let result = C.advanceMatcher head way
+  let result = C.advanceHead head way
+  annotateShow result
   assert $ (length result) == 1 || (length result) == 0
 
 prop_extendsEmptyConsumesNonOneway :: Property
-prop_extendsEmptyConsumesNonOneway = property $ do
-  let head = C.MatcherHead [] Nothing
+prop_extendsEmptyConsumesNonOneway = withTests 300 $ property $ do
+  let matcherHead = C.MatcherHead [] Nothing
   way <- forAll nonOnewayWay
-  let result = C.advanceMatcher head way
+  let result = C.advanceHead matcherHead way
+
   Set.fromList (headWay <$> result) ===
-    Set.fromList [ [C.WayWithDirection C.Forward way]
-                 , [C.WayWithDirection C.Backward way] ]
+    if head (OSM.nodeIDs way) == last (OSM.nodeIDs way)
+    then Set.fromList [ [C.WayWithPossibleDirection Nothing way] ]
+    else Set.fromList [ [C.WayWithPossibleDirection (Just C.Forward) way]
+                      , [C.WayWithPossibleDirection (Just C.Backward) way] ]
     where
       headWay (C.MatcherHead w _) = w
       nonOnewayWay :: Gen (OSM.Way ())
@@ -79,12 +85,18 @@ prop_firstConnectedWaysReturnRemaining = property $ do
   annotateShow remaining
   assert $ all (\wds -> length wds + length remaining == length ways) variants
 
+prop_connectedWaysPreservesCount :: Property
+prop_connectedWaysPreservesCount = withTests 2000 $ property $ do
+  ways <- forAll $ Gen.list (Range.constant 1 6) way
+  let result = C.connectedWays ways
+  sum (length <$> result) === length ways
+
 spec = do
   describe "Ptwatch.Connectedness" $ do
     describe "advanceMatcher" $ do
       context "when starting from single way" $ do
         it "returns result of one or zero choices" $
-          require prop_extendsGivesResult
+          require prop_extendsOneOrZeroForNonFirst
       context "when starging from empty head" $ do
         context "for non-oneway ways" $ do
           it "returns result of two variants" $
@@ -95,3 +107,6 @@ spec = do
           require prop_firstConnectedWaysAtLeastOneWay
         it "returns count of ways + remaining the same as input count" $ do
           require prop_firstConnectedWaysReturnRemaining
+    describe "connectedWays" $ do
+      it "returns the same sum count of ways in results as in input" $ do
+        require prop_connectedWaysPreservesCount
