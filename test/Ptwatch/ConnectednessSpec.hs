@@ -38,7 +38,7 @@ simpleMatcherHead :: Gen (C.MatcherHead ())
 simpleMatcherHead = do
   lastNodeID <- OSM.NodeID <$> Gen.int64 (Range.constant 2 10)
   let way = OSM.way (OSM.WayID 1) Map.empty [OSM.NodeID 1, lastNodeID]
-  return $ C.MatcherHead [C.WayWithPossibleDirection (Just C.Forward) way] (Just lastNodeID)
+  return $ C.MatcherHead [C.WayWithDirection (Just C.Forward) way] (Just lastNodeID)
 
 -- | Extending head with any way gives one or zero results when head
 -- has last point
@@ -58,9 +58,9 @@ prop_extendsEmptyConsumesNonOneway = withTests 300 $ property $ do
 
   Set.fromList (headWay <$> result) ===
     if head (OSM.nodeIDs way) == last (OSM.nodeIDs way)
-    then Set.fromList [ [C.WayWithPossibleDirection Nothing way] ]
-    else Set.fromList [ [C.WayWithPossibleDirection (Just C.Forward) way]
-                      , [C.WayWithPossibleDirection (Just C.Backward) way] ]
+    then Set.fromList [ [C.WayWithDirection Nothing way] ]
+    else Set.fromList [ [C.WayWithDirection (Just C.Forward) way]
+                      , [C.WayWithDirection (Just C.Backward) way] ]
     where
       headWay (C.MatcherHead w _) = w
       nonOnewayWay :: Gen (OSM.Way ())
