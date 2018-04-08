@@ -126,12 +126,17 @@ advanceHead head way = do
   newHead <- f head way
   return newHead
 
+-- | Advances multiple matcher heads with 'advanceHead', return new
+-- list of possible heads extended with given way.
 advanceHeads :: (Show v) => [MatcherHead v] -> OSM.Way v -> [MatcherHead v]
 advanceHeads heads ways = do
   head <- heads
   newHead <- advanceHead head ways
   return newHead
 
+-- | Advances multiple matcher heads as far as possible (when at least
+-- one match can be made), returns new list of heads and remaining
+-- ways (which is similar to classical parser combinators)
 advanceHeadsWhilePossible ::
   (Show v) => [MatcherHead v] -> NonEmpty (OSM.Way v)
   -> ([MatcherHead v], [OSM.Way v])
