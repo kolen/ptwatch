@@ -126,21 +126,21 @@ advanceHead head way = do
   newHead <- f head way
   return newHead
 
-advanceMatchers :: (Show v) => [MatcherHead v] -> OSM.Way v -> [MatcherHead v]
-advanceMatchers heads ways = do
+advanceHeads :: (Show v) => [MatcherHead v] -> OSM.Way v -> [MatcherHead v]
+advanceHeads heads ways = do
   head <- heads
   newHead <- advanceHead head ways
   return newHead
 
-advanceMatchersWhilePossible ::
+advanceHeadsWhilePossible ::
   (Show v) => [MatcherHead v] -> NonEmpty (OSM.Way v)
   -> ([MatcherHead v], [OSM.Way v])
-advanceMatchersWhilePossible heads ways@(way:|restWays) =
-  case advanceMatchers heads way of
+advanceHeadsWhilePossible heads ways@(way:|restWays) =
+  case advanceHeads heads way of
     [] -> (heads, toList ways)
     newHeads -> case nonEmpty restWays of
       Nothing -> (newHeads, [])
-      Just restWays' -> advanceMatchersWhilePossible newHeads restWays'
+      Just restWays' -> advanceHeadsWhilePossible newHeads restWays'
 
 -- | Finds direction of first group of connected ways in list of
 -- ways. Returns list of variants of how ways can be connected and
@@ -154,7 +154,7 @@ firstConnectedWays ways = (connectVariants, remainingWays)
     connectVariants = wayFromHead <$> finalHeads
     wayFromHead (MatcherHead way _) = way
     (finalHeads, remainingWays) =
-      advanceMatchersWhilePossible [startingMatcherHead] ways
+      advanceHeadsWhilePossible [startingMatcherHead] ways
 
 -- | For list of OSM ways specified in the same order as in
 -- @type=route@ relation, return lists of ways with detected
