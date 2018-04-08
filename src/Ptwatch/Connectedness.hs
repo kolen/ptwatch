@@ -6,8 +6,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Ptwatch.Connectedness
-
-where
+  ( MatcherHead(..)
+  , WayWithDirection(..)
+  , Direction(..)
+  , advanceHead
+  , firstConnectedWays
+  , connectedWays ) where
 
 import Data.List.NonEmpty (NonEmpty(..), toList, nonEmpty)
 import qualified OSM
