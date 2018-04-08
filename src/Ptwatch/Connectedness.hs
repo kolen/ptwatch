@@ -43,8 +43,17 @@ headConnectsTo :: MatcherHead v -> OSM.NodeID -> Bool
 headConnectsTo (MatcherHead _ Nothing) _ = True
 headConnectsTo (MatcherHead _ (Just hn)) n = n == hn
 
-data Oneway = Oneway | ReverseOneway | NotOneway deriving (Eq)
+-- | One-way status of OSM way. See
+-- https://wiki.openstreetmap.org/wiki/Key:oneway
+data Oneway
+  = Oneway -- ^ One-way road with direction from first node to last node
+  | ReverseOneway -- ^ One-way with reverse direction (@oneway=-1@,
+                  -- etc). Not recommended to use such tagging in OSM,
+                  -- just reversing the way is usually better.
+  | NotOneway -- ^ Not an one-way road
+  deriving (Eq)
 
+-- | Returns one-way status of way
 oneway :: OSM.Way v -> Oneway
 oneway = ov . Map.lookup (OSM.TagKey "oneway") . OSM.tags
   where
@@ -53,7 +62,10 @@ oneway = ov . Map.lookup (OSM.TagKey "oneway") . OSM.tags
                 | otherwise = NotOneway
     ov Nothing = NotOneway
 
--- | Returns true if way is starting and ending with the same node
+-- | Returns true if way is "loopy" or "closed": starting and ending
+-- with the same node. Usually it's discouraged to map roads this way,
+-- closed ways are for polygon geometry, and in routes such ways are
+-- especially nasty.
 isLoopWay :: OSM.Way v -> Bool
 isLoopWay way = head nids == last nids where nids = OSM.nodeIDs way
 
@@ -71,6 +83,8 @@ advanceHeadWith
 advanceHeadWith (MatcherHead oldWays _) way node =
   MatcherHead (oldWays ++ [way]) (Just node)
 
+-- | Returns possibilities for advancing matcher head with way treated
+-- as having forward direction.
 advanceHeadForward :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
 advanceHeadForward head way =
   if headConnectsTo head (firstNode way)
@@ -80,6 +94,8 @@ advanceHeadForward head way =
         (lastNode way)]
   else []
 
+-- | Returns possibilities for advancing matcher head with way treated
+-- as having backward direction.
 advanceHeadBackward :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
 advanceHeadBackward head way =
   if headConnectsTo head (lastNode way)
@@ -99,6 +115,11 @@ advanceHeadLoopWay head way =
         (firstNode way)]
   else []
 
+-- | Returns possibilities of advancing matcher head with a way, it
+-- may return zero possibilities (head can't be continued with this
+-- way), one (there is one unambigous way to continue matcher head)
+-- and two (head can be continued by going through way in two
+-- directions).
 advanceHead :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
 advanceHead head way = do
   f <- [advanceHeadForward, advanceHeadBackward, advanceHeadLoopWay]
