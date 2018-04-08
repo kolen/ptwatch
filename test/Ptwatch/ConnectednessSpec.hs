@@ -14,15 +14,15 @@ import HaskellWorks.Hspec.Hedgehog
 import qualified OSM
 import qualified Ptwatch.Connectedness as C
 
-simpleWays :: Gen (NonEmpty (OSM.Way ()))
-simpleWays = fromJust <$> nonEmpty <$> Gen.list (Range.linear 2 10) ( OSM.way
+simpleWaysG :: Gen (NonEmpty (OSM.Way ()))
+simpleWaysG = fromJust <$> nonEmpty <$> Gen.list (Range.linear 2 10) ( OSM.way
   <$> (OSM.WayID <$> (Gen.int64 (Range.constant 0 5)))
   <*> Gen.constant Map.empty
   <*> Gen.list (Range.linear 2 3)
                (OSM.NodeID <$> (Gen.int64 (Range.constant 0 5))))
 
-way :: Gen (OSM.Way ())
-way = OSM.way
+wayG :: Gen (OSM.Way ())
+wayG = OSM.way
   <$> (OSM.WayID <$> (Gen.int64 (Range.constant 0 5)))
   <*> direction
   <*> Gen.list (Range.linear 2 3)
@@ -34,8 +34,8 @@ way = OSM.way
                            ]
     oneway = OSM.TagKey "oneway"
 
-simpleMatcherHead :: Gen (C.MatcherHead ())
-simpleMatcherHead = do
+simpleMatcherHeadG :: Gen (C.MatcherHead ())
+simpleMatcherHeadG = do
   lastNodeID <- OSM.NodeID <$> Gen.int64 (Range.constant 2 10)
   let way = OSM.way (OSM.WayID 1) Map.empty [OSM.NodeID 1, lastNodeID]
   return $ C.MatcherHead [C.WayWithDirection (Just C.Forward) way] (Just lastNodeID)
@@ -44,8 +44,8 @@ simpleMatcherHead = do
 -- has last point
 prop_extendsOneOrZeroForNonFirst :: Property
 prop_extendsOneOrZeroForNonFirst = withTests 1000 $ property $ do
-  head <- forAll simpleMatcherHead
-  way <- forAll way
+  head <- forAll simpleMatcherHeadG
+  way <- forAll wayG
   let result = C.advanceHead head way
   annotateShow result
   assert $ (length result) == 1 || (length result) == 0
@@ -72,14 +72,14 @@ prop_extendsEmptyConsumesNonOneway = withTests 300 $ property $ do
 
 prop_firstConnectedWaysAtLeastOneWay :: Property
 prop_firstConnectedWaysAtLeastOneWay = property $ do
-  ways <- forAll simpleWays
+  ways <- forAll simpleWaysG
   let (variants, remaining) = C.firstConnectedWays ways
   annotateShow variants
   assert $ (length variants) >= 1
 
 prop_firstConnectedWaysReturnRemaining :: Property
 prop_firstConnectedWaysReturnRemaining = property $ do
-  ways <- forAll simpleWays
+  ways <- forAll simpleWaysG
   let (variants, remaining) = C.firstConnectedWays ways
   annotateShow variants
   annotateShow remaining
@@ -87,7 +87,7 @@ prop_firstConnectedWaysReturnRemaining = property $ do
 
 prop_connectedWaysPreservesCount :: Property
 prop_connectedWaysPreservesCount = withTests 2000 $ property $ do
-  ways <- forAll $ Gen.list (Range.constant 1 6) way
+  ways <- forAll $ Gen.list (Range.constant 1 6) wayG
   let result = C.connectedWays ways
   sum (length <$> result) === length ways
 
