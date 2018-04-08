@@ -30,9 +30,6 @@ data WayWithDirection v =
   WayWithDirection (Maybe Direction) (OSM.Way v)
   deriving (Eq, Ord, Show)
 
-newtype Matcher s r = Matcher { match :: [s] -> (r, [s]) }
-type WaysMatcher v = Matcher (OSM.Way v) [WayWithDirection v]
-
 -- | Head of ways "parser" consisting of list of matched ways with
 -- detected directions and last "head" node
 data MatcherHead v =
