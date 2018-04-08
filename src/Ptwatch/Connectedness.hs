@@ -49,7 +49,7 @@ oneway :: OSM.Way v -> Oneway
 oneway = ov . Map.lookup (OSM.TagKey "oneway") . OSM.tags
   where
     ov (Just x) | x `elem` ["yes", "1", "true"] = Oneway
-                | x `elem` ["reversible", "-1", "reverse"] = ReverseOneway
+                | x `elem` ["-1", "reverse"] = ReverseOneway
                 | otherwise = NotOneway
     ov Nothing = NotOneway
 
