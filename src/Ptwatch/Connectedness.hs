@@ -30,20 +30,20 @@ data Direction
 -- route has only one way, and it is not one-way, then direction is
 -- uncertain. All directions must be certain in order for route to be
 -- valid.
-data WayWithDirection v =
-  WayWithDirection (Maybe Direction) (OSM.Way v)
+data WayWithDirection =
+  WayWithDirection (Maybe Direction) OSM.WayID
   deriving (Eq, Ord, Show)
 
 -- | Head of ways "parser" consisting of list of matched ways with
 -- detected directions and last "head" node
-data MatcherHead v =
-  MatcherHead [WayWithDirection v] (Maybe OSM.NodeID) deriving (Show)
+data MatcherHead =
+  MatcherHead [WayWithDirection] (Maybe OSM.NodeID) deriving (Show)
 
-startingMatcherHead :: MatcherHead v
+startingMatcherHead :: MatcherHead
 startingMatcherHead = MatcherHead [] Nothing
 
 -- | Returns true if 'MatcherHead' can connect to given node id
-headConnectsTo :: MatcherHead v -> OSM.NodeID -> Bool
+headConnectsTo :: MatcherHead -> OSM.NodeID -> Bool
 headConnectsTo (MatcherHead _ Nothing) _ = True
 headConnectsTo (MatcherHead _ (Just hn)) n = n == hn
 
@@ -80,42 +80,42 @@ lastNode :: OSM.Way v -> OSM.NodeID
 lastNode way = last $ OSM.nodeIDs way
 
 advanceHeadWith
-  :: MatcherHead v
-  -> WayWithDirection v
+  :: MatcherHead
+  -> WayWithDirection
   -> OSM.NodeID
-  -> MatcherHead v
+  -> MatcherHead
 advanceHeadWith (MatcherHead oldWays _) way node =
   MatcherHead (oldWays ++ [way]) (Just node)
 
 -- | Returns possibilities for advancing matcher head with way treated
 -- as having forward direction.
-advanceHeadForward :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
+advanceHeadForward :: MatcherHead -> OSM.Way v -> [MatcherHead]
 advanceHeadForward head way =
   if headConnectsTo head (firstNode way)
   && not (isLoopWay way)
   && (oneway way) /= ReverseOneway
-  then [advanceHeadWith head (WayWithDirection (Just Forward) way)
+  then [advanceHeadWith head (WayWithDirection (Just Forward) (OSM.id way))
         (lastNode way)]
   else []
 
 -- | Returns possibilities for advancing matcher head with way treated
 -- as having backward direction.
-advanceHeadBackward :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
+advanceHeadBackward :: MatcherHead -> OSM.Way v -> [MatcherHead]
 advanceHeadBackward head way =
   if headConnectsTo head (lastNode way)
   && not (isLoopWay way)
   && (oneway way) /= Oneway
-  then [advanceHeadWith head (WayWithDirection (Just Backward) way)
+  then [advanceHeadWith head (WayWithDirection (Just Backward) (OSM.id way))
         (firstNode way)]
   else []
 
 -- | Returns possibilities for advancing matcher head with loop way (a
 -- way starting and ending with the same node). If it's not a loop
 -- way, or can't be attached to MatcherHead, returns @[]@.
-advanceHeadLoopWay :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
+advanceHeadLoopWay :: MatcherHead -> OSM.Way v -> [MatcherHead]
 advanceHeadLoopWay head way =
   if isLoopWay way && headConnectsTo head (firstNode way)
-  then [advanceHeadWith head (WayWithDirection Nothing way)
+  then [advanceHeadWith head (WayWithDirection Nothing (OSM.id way))
         (firstNode way)]
   else []
 
@@ -124,7 +124,7 @@ advanceHeadLoopWay head way =
 -- way), one (there is one unambigous way to continue matcher head)
 -- and two (head can be continued by going through way in two
 -- directions).
-advanceHead :: MatcherHead v -> OSM.Way v -> [MatcherHead v]
+advanceHead :: MatcherHead -> OSM.Way v -> [MatcherHead]
 advanceHead head way = do
   f <- [advanceHeadForward, advanceHeadBackward, advanceHeadLoopWay]
   newHead <- f head way
@@ -132,7 +132,7 @@ advanceHead head way = do
 
 -- | Advances multiple matcher heads with 'advanceHead', return new
 -- list of possible heads extended with given way.
-advanceHeads :: (Show v) => [MatcherHead v] -> OSM.Way v -> [MatcherHead v]
+advanceHeads :: (Show v) => [MatcherHead] -> OSM.Way v -> [MatcherHead]
 advanceHeads heads ways = do
   head <- heads
   newHead <- advanceHead head ways
@@ -142,8 +142,8 @@ advanceHeads heads ways = do
 -- one match can be made), returns new list of heads and remaining
 -- ways (which is similar to classical parser combinators)
 advanceHeadsWhilePossible ::
-  (Show v) => [MatcherHead v] -> NonEmpty (OSM.Way v)
-  -> ([MatcherHead v], [OSM.Way v])
+  (Show v) => [MatcherHead] -> NonEmpty (OSM.Way v)
+  -> ([MatcherHead], [OSM.Way v])
 advanceHeadsWhilePossible heads ways@(way:|restWays) =
   case advanceHeads heads way of
     [] -> (heads, toList ways)
@@ -157,7 +157,7 @@ advanceHeadsWhilePossible heads ways@(way:|restWays) =
 firstConnectedWays ::
   (Show v)
   => NonEmpty (OSM.Way v)
-  -> ([[WayWithDirection v]], [OSM.Way v])
+  -> ([[WayWithDirection]], [OSM.Way v])
 firstConnectedWays ways = (connectVariants, remainingWays)
   where
     connectVariants = wayFromHead <$> finalHeads
@@ -169,7 +169,7 @@ firstConnectedWays ways = (connectVariants, remainingWays)
 -- @type=route@ relation, return lists of ways with detected
 -- directions. If route has breaks, multiple lists of ways will be
 -- returned, each is connected component.
-connectedWays :: (Show v) => [OSM.Way v] -> [[WayWithDirection v]]
+connectedWays :: (Show v) => [OSM.Way v] -> [[WayWithDirection]]
 connectedWays ways =
   case neWays of
     Nothing -> []
@@ -182,8 +182,7 @@ connectedWays ways =
         _ -> connectVariants' : connectedWays remainingWays
   where
     neWays = nonEmpty ways
-    multiToPossible ::
-      (Show v) => [[WayWithDirection v]] -> [WayWithDirection v]
+    multiToPossible :: [[WayWithDirection]] -> [WayWithDirection]
     multiToPossible [variant1, _variant2] = wayToUncertain <$> variant1
     multiToPossible [variant] = variant
     multiToPossible erroneous = error (show erroneous)
