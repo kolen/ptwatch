@@ -7,7 +7,7 @@
 
 module Ptwatch.Connectedness
   ( MatcherHead(..)
-  , WayWithDirection(..)
+  , WayIDWithDirection(..)
   , Direction(..)
   , advanceHead
   , firstConnectedWays
@@ -24,20 +24,20 @@ data Direction
   | Backward  -- ^ From last node to first node
   deriving (Eq, Ord, Show)
 
--- | OSM way with detected direction. Direction can be uncertain
+-- | OSM way id with detected direction. Direction can be uncertain
 -- ('Nothing') when way is loopy (starts and ends with the same node)
 -- or if connected component of ways has too few ways. For example, if
 -- route has only one way, and it is not one-way, then direction is
 -- uncertain. All directions must be certain in order for route to be
 -- valid.
-data WayWithDirection =
-  WayWithDirection (Maybe Direction) OSM.WayID
+data WayIDWithDirection =
+  WayIDWithDirection (Maybe Direction) OSM.WayID
   deriving (Eq, Ord, Show)
 
 -- | Head of ways "parser" consisting of list of matched ways with
 -- detected directions and last "head" node
 data MatcherHead =
-  MatcherHead [WayWithDirection] (Maybe OSM.NodeID) deriving (Show)
+  MatcherHead [WayIDWithDirection] (Maybe OSM.NodeID) deriving (Show)
 
 startingMatcherHead :: MatcherHead
 startingMatcherHead = MatcherHead [] Nothing
@@ -81,7 +81,7 @@ lastNode way = last $ OSM.nodeIDs way
 
 advanceHeadWith
   :: MatcherHead
-  -> WayWithDirection
+  -> WayIDWithDirection
   -> OSM.NodeID
   -> MatcherHead
 advanceHeadWith (MatcherHead oldWays _) way node =
@@ -94,7 +94,7 @@ advanceHeadForward head way =
   if headConnectsTo head (firstNode way)
   && not (isLoopWay way)
   && (oneway way) /= ReverseOneway
-  then [advanceHeadWith head (WayWithDirection (Just Forward) (OSM.id way))
+  then [advanceHeadWith head (WayIDWithDirection (Just Forward) (OSM.id way))
         (lastNode way)]
   else []
 
@@ -105,7 +105,7 @@ advanceHeadBackward head way =
   if headConnectsTo head (lastNode way)
   && not (isLoopWay way)
   && (oneway way) /= Oneway
-  then [advanceHeadWith head (WayWithDirection (Just Backward) (OSM.id way))
+  then [advanceHeadWith head (WayIDWithDirection (Just Backward) (OSM.id way))
         (firstNode way)]
   else []
 
@@ -115,7 +115,7 @@ advanceHeadBackward head way =
 advanceHeadLoopWay :: MatcherHead -> OSM.Way v -> [MatcherHead]
 advanceHeadLoopWay head way =
   if isLoopWay way && headConnectsTo head (firstNode way)
-  then [advanceHeadWith head (WayWithDirection Nothing (OSM.id way))
+  then [advanceHeadWith head (WayIDWithDirection Nothing (OSM.id way))
         (firstNode way)]
   else []
 
@@ -157,7 +157,7 @@ advanceHeadsWhilePossible heads ways@(way:|restWays) =
 firstConnectedWays ::
   (Show v)
   => NonEmpty (OSM.Way v)
-  -> ([[WayWithDirection]], [OSM.Way v])
+  -> ([[WayIDWithDirection]], [OSM.Way v])
 firstConnectedWays ways = (connectVariants, remainingWays)
   where
     connectVariants = wayFromHead <$> finalHeads
@@ -169,7 +169,7 @@ firstConnectedWays ways = (connectVariants, remainingWays)
 -- @type=route@ relation, return lists of ways with detected
 -- directions. If route has breaks, multiple lists of ways will be
 -- returned, each is connected component.
-connectedWays :: (Show v) => [OSM.Way v] -> [[WayWithDirection]]
+connectedWays :: (Show v) => [OSM.Way v] -> [[WayIDWithDirection]]
 connectedWays ways =
   case neWays of
     Nothing -> []
@@ -182,9 +182,9 @@ connectedWays ways =
         _ -> connectVariants' : connectedWays remainingWays
   where
     neWays = nonEmpty ways
-    multiToPossible :: [[WayWithDirection]] -> [WayWithDirection]
+    multiToPossible :: [[WayIDWithDirection]] -> [WayIDWithDirection]
     multiToPossible [variant1, _variant2] = wayToUncertain <$> variant1
     multiToPossible [variant] = variant
     multiToPossible erroneous = error (show erroneous)
-    wayToUncertain (WayWithDirection _ w) =
-      WayWithDirection Nothing w
+    wayToUncertain (WayIDWithDirection _ w) =
+      WayIDWithDirection Nothing w
