@@ -15,8 +15,10 @@ module Ptwatch.Connectedness
 
 import Data.List.NonEmpty (NonEmpty(..), toList, nonEmpty)
 import qualified OSM
+import qualified OSM.OverpassJSON
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import Data.Aeson
 
 -- | Direction of movement (in route terms) along OSM way.
 data Direction
@@ -33,6 +35,30 @@ data Direction
 data WayIDWithDirection =
   WayIDWithDirection (Maybe Direction) OSM.WayID
   deriving (Eq, Ord, Show)
+
+-- | Used only to define Aeson instances on 'Maybe
+-- Direction'. Probably should be used everywhere instead of 'Maybe
+-- Direction'.
+newtype UncertainDirection =
+  UncertainDirection { fromUncertainDirection :: Maybe Direction }
+
+instance ToJSON UncertainDirection where
+  toJSON (UncertainDirection d) = case d of
+    Just Forward -> "forward"
+    Just Backward -> "backward"
+    Nothing -> "unknown"
+instance FromJSON UncertainDirection where
+  parseJSON (String "forward") = return $ UncertainDirection $ Just Forward
+  parseJSON (String "backward") = return $ UncertainDirection $ Just Backward
+  parseJSON (String "unknown") = return $ UncertainDirection $ Nothing
+  parseJSON x = fail $ "Invalid direction " ++ (show x)
+
+instance ToJSON WayIDWithDirection where
+  toJSON (WayIDWithDirection dir id) = toJSON (UncertainDirection dir, id)
+instance FromJSON WayIDWithDirection where
+  parseJSON v = do
+    (dir, id) <- parseJSON v
+    return $ WayIDWithDirection (fromUncertainDirection dir) id
 
 -- | Head of ways "parser" consisting of list of matched ways with
 -- detected directions and last "head" node
